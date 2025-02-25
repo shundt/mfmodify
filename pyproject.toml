@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mfmodify"
+version = "0.1.0"
+description = "Functions for reading and modifying existing MODFLOW 6 models."
+readme = "README.md"
+readme-content-type = "text/markdown"
+authors = [
+    { name = "Stephen Hundt", email = "shundt@usgs.gov" }
+]
+homepage = "https://github.com/shundt/mfmodify"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+[project.dependencies]
+numpy = "*"
+pandas = "*"
+matplotlib = "*"
+flopy = "*"
+
+[tool.setuptools.packages.find]
+include = ["mf_modify", "mf_modify.*"]

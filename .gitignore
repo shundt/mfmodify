@@ -1,0 +1,5 @@
+examples/scenario_tests/*
+*.hds
+*.cbb
+*.cbc
+*.bud
