@@ -9,8 +9,8 @@ import flopy
 # import mf_modify
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from mf_modify import get_sp_data, scenario_from_repeat_years
-from mf_modify.scenario_utils import copy_param_dict 
+from mfmodify import get_sp_data, scenario_from_repeat_years
+from mfmodify.scenario import copy_param_dict 
 
 #%%
 # INPUT
