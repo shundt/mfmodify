@@ -1,5 +1,8 @@
 examples/scenario_tests/*
+examples/regrid_tests/*
 *.hds
 *.cbb
 *.cbc
 *.bud
+*.ipynb
+*/__pycache__/*

@@ -4,6 +4,17 @@ import inspect
 import numpy as np 
 import pandas as pd
 import flopy
+from .utils import (
+    get_parameter_set, 
+    param_dict_from_list, 
+    get_ts_objects, 
+    get_obs_objects,
+    copy_package,
+    copy_param_dict,
+    get_sp_data
+)
+
+# TODO: Add other boundary types (now just drn, ghb, riv, wel)
 
 # FUNCTIONS
 # functions within create_scenario_from_years
@@ -26,24 +37,6 @@ def round_date(ts, frequency='M'):
         raise ValueError("Frequency must be 'Y', 'M', 'D', 'h', 'min', 's', or 'ms")
     return rounded
 
-def get_sp_data(sim, snap_dates='M'):
-    tdis = sim.get_package('tdis')
-    start_date_time = pd.to_datetime(tdis.start_date_time.data)
-    sp_df = (
-        pd 
-        .DataFrame(tdis.perioddata.array) 
-        .assign(endtime = lambda x: x.perlen.cumsum())
-        .assign(starttime = lambda x: [0] + x.endtime[:-1].to_list())
-        .assign(start_date_time = lambda x: x.starttime.map(lambda x: start_date_time + pd.Timedelta(days=x)))
-        .assign(start_date_time = lambda x: x.start_date_time.dt.round('min')) 
-        .assign(start_date = lambda x: pd.to_datetime(x.start_date_time.dt.date))
-        .assign(snap_date = lambda x: x.start_date.apply(round_date, args=snap_dates))
-        .assign(year = lambda x: x.snap_date.dt.year)
-        .assign(month = lambda x: x.snap_date.dt.month)
-        .assign(sp = lambda x: x.index)
-        .loc[:, ['sp', 'start_date', 'snap_date', 'year', 'month', 'perlen', 'nstp', 'tsmult', 'endtime', 'starttime', 'start_date_time']]
-    )
-    return sp_df
 def scenario_years_to_sps(scenario_years, sp_df):
     scenario_sps = []
     for year in scenario_years:
@@ -55,30 +48,6 @@ def scenario_years_to_sps(scenario_years, sp_df):
         )
         scenario_sps.extend(i_sps)
     return scenario_sps
-
-def get_parameter_set(pack, rem_att_set=set([])):
-    # get list of attributes
-    pack_att_set = set(vars(pack).keys())
-    # Get a list of parameters for instantiating the class
-    constructor_params = inspect.signature(pack.__init__).parameters
-    param_name_set = set(constructor_params.keys())
-    # get list of attributes to extract and store in dictionary to unpack on instantiation
-    attribute_trans_list = (pack_att_set.intersection(param_name_set) - rem_att_set)
-    return attribute_trans_list
-
-def param_dict_from_list(pack, param_list):
-    pack_param_dict = {}
-    for att in param_list:
-        att_val = getattr(pack, att)
-        if att_val is None:
-            pack_param_dict[att] = att_val
-        elif isinstance(att_val, str):
-            pack_param_dict[att] = att_val
-        elif isinstance(att_val, bool):
-            pack_param_dict[att] = att_val
-        elif att_val.has_data():
-            pack_param_dict[att] = att_val.get_data()
-    return pack_param_dict
 
 def retime_package_sp_data(param_values, new_sp_df):
     # make conversion array for stress periods
@@ -99,22 +68,6 @@ def retime_package_sp_data(param_values, new_sp_df):
     for orig_sp, new_sp in convert_df.itertuples(index=False, name=None):
         new_sp_data_dict[new_sp] = sp_data_dict[orig_sp]
     return new_sp_data_dict
-
-def get_objects_from_pack(pack, attribute_name):
-    object_list = []
-    for i in range(1000):
-        try:
-            obj = getattr(pack, attribute_name)[i]  # Use getattr to access the attribute
-            object_list.append(obj)
-        except ValueError:
-            break
-    return object_list
-
-def get_ts_objects(pack):
-    return get_objects_from_pack(pack, 'ts')
-
-def get_obs_objects(pack):
-    return get_objects_from_pack(pack, 'obs')
 
 def convert_timeseries(timeseries, convert_df):
     # make the timeseries a dataframe
@@ -418,29 +371,6 @@ def get_scenario_sp_lut(scenario_years_and_weights, sp_df):
     )
     return sp_lut_df
 
-def copy_param_dict(pack):
-    # get list of attributes to use as parameters in instantiating object
-    rem_att_set = set(['loading_package'])
-    param_set = get_parameter_set(pack, rem_att_set=rem_att_set)
-    param_list = list(param_set - set([]))
-    # create parameter dictionary 
-    # get those from attribute list
-    pack_param_dict = param_dict_from_list(pack, param_list)
-    # add others manually
-    pack_param_dict['pname'] = pack.package_name
-    pack_param_dict['filename'] = pack.filename
-    return pack_param_dict
-
-def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
-    pack = sim_or_gwf_orig.get_package(pack_name)
-    # return pack
-    pack_class = pack.__class__
-    # get package paramters
-    pack_param_dict = copy_param_dict(pack) 
-    # instantiate package
-    pack_new = pack_class(sim_or_gwf_new, **pack_param_dict)
-    return pack_new
-
 def sp_data_to_df(sp_data_dict):
     df_list = []
     for sp, ra in sp_data_dict.items():
@@ -454,7 +384,6 @@ def sp_data_df_to_dict(sp_data_df):
         ra = df.drop(['sp'], axis=1).to_records(index=False)
         sp_data_dict[sp] = ra
     return sp_data_dict
-
 
 def weight_mean_package_sp_data(param_values, sp_data_lut):
     """
