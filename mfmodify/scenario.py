@@ -18,24 +18,6 @@ from .utils import (
 
 # FUNCTIONS
 # functions within create_scenario_from_years
-def round_date(ts, frequency='M'):
-    if frequency in ['M', 'Y']:
-        if frequency == 'M':
-            offsetter = pd.offsets.MonthBegin
-        elif frequency == 'Y':
-            offsetter = pd.offsets.YearBegin
-        nxt = ts + offsetter()
-        prv = offsetter().rollback(ts)
-        midpoint = prv + (nxt - prv) / 2
-        if ts < midpoint:
-            rounded = prv
-        else:
-            rounded = nxt
-    elif frequency in ['h', 'min', 's', 'ms', 'D']:
-        rounded = ts.round(frequency)  
-    else:
-        raise ValueError("Frequency must be 'Y', 'M', 'D', 'h', 'min', 's', or 'ms")
-    return rounded
 
 def scenario_years_to_sps(scenario_years, sp_df):
     scenario_sps = []

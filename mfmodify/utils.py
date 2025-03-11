@@ -1,17 +1,34 @@
 # IMPORT
 import inspect
-from pandas import DataFrame
-from .scenario import get_sp_data
+import pandas as pd
 
 # VARIABLES
 
 # FUNCTIONS
+def round_date(ts, frequency='M'):
+    if frequency in ['M', 'Y']:
+        if frequency == 'M':
+            offsetter = pd.offsets.MonthBegin
+        elif frequency == 'Y':
+            offsetter = pd.offsets.YearBegin
+        nxt = ts + offsetter()
+        prv = offsetter().rollback(ts)
+        midpoint = prv + (nxt - prv) / 2
+        if ts < midpoint:
+            rounded = prv
+        else:
+            rounded = nxt
+    elif frequency in ['h', 'min', 's', 'ms', 'D']:
+        rounded = ts.round(frequency)  
+    else:
+        raise ValueError("Frequency must be 'Y', 'M', 'D', 'h', 'min', 's', or 'ms")
+    return rounded
+
 def get_sp_data(sim, snap_dates='M'):
     tdis = sim.get_package('tdis')
     start_date_time = pd.to_datetime(tdis.start_date_time.data)
     sp_df = (
-        pd 
-        .DataFrame(tdis.perioddata.array) 
+        pd.DataFrame(tdis.perioddata.array) 
         .assign(endtime = lambda x: x.perlen.cumsum())
         .assign(starttime = lambda x: [0] + x.endtime[:-1].to_list())
         .assign(start_date_time = lambda x: x.starttime.map(lambda x: start_date_time + pd.Timedelta(days=x)))
@@ -85,13 +102,16 @@ def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
     pack_class = pack.__class__
     # get package paramters
     pack_param_dict = copy_param_dict(pack) 
+    # get manual parameters
+    for att, val in manual_params.items():
+        pack_param_dict[att] = val
     # instantiate package
     pack_new = pack_class(sim_or_gwf_new, **pack_param_dict)
     return pack_new
 
 def get_gwf_package_df(gwf):
     gwf_package_df = (
-        DataFrame(gwf.name_file.packages.array)
+        pd.DataFrame(gwf.name_file.packages.array)
         .assign(ftype = lambda x: [ft[:-1] for ft in x.ftype])
         .assign(dummy = 1)
         .assign(paknum = lambda x: x.groupby('ftype').dummy.transform('cumsum') - 1)
@@ -121,3 +141,36 @@ def lst_df_from_gwf(gwf):
         .assign(net_storage = lambda x: x['STO-SS_OUT'] - x['STO-SS_IN'])
     )
     return lst_df
+
+def lst_df_from_gwf_long(gwf):
+    # get gwf package info
+    gwf_package_df = get_gwf_package_df(gwf)
+    pakname_lut = gwf_package_df.set_index('pakname').pname
+    # get wide lst df
+    lst_df = lst_df_from_gwf(gwf)
+    # join with paknam lut and format
+    lst_df_long_all = (
+        lst_df
+        .melt(id_vars = ['sp', 'year', 'month'], var_name='pak', value_name='rate')
+        .assign(pakname = lambda x: [x.split('_')[0].lower() for x in x.pak])
+        .join(pakname_lut, on='pakname')
+        .assign(pname = lambda x: x.pname.fillna(x.pakname))
+        .assign(direction = lambda x: [x.split('_')[-1].lower() for x in x.pak])
+        .assign(bcompname = lambda x: [f'{nm}-{di}' for nm,di in zip(x.pname, x.direction)])
+    )
+    # find list of components that have values
+    comp_keep = (
+        lst_df_long_all
+        .groupby('bcompname')
+        .sum()
+        .query('rate!=0')
+        .index
+        .tolist()
+    )
+    # query by those components
+    lst_df_long = (
+        lst_df_long_all
+        .query(f'bcompname in {comp_keep}')
+        .drop(['pakname'], axis=1)
+    )
+    return lst_df_long

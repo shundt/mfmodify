@@ -8,7 +8,8 @@ from .utils import (
     get_parameter_set, 
     param_dict_from_list, 
     get_ts_objects, 
-    get_obs_objects
+    get_obs_objects,
+    copy_param_dict
 )
 
 # VARIABLES
@@ -190,7 +191,6 @@ def refine_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, convert_df, manua
                     ts_dict['pname'] = f'{pack_name}_ts{i}'
                     pack_new.ts.append_package(**ts_dict)
                 i+=1
-    # TODO: screen for hdobs packages and change cellids
     # reassociate observation packages
     if hasattr(pack_orig, 'obs'):
         obs_objects = get_obs_objects(pack_orig)
