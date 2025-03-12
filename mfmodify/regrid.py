@@ -255,3 +255,108 @@ def modify_gridgen_disv_props(disv_props_orig):
     disv_props['nvert'] = nvert_new
     disv_props['cell2d'] = cell2d_new
     return disv_props
+
+def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props):
+    # Get original model
+    gwf_orig = sim_orig.get_model(model_name)
+    
+    # Check if all packages in the gwf model can be converted by this function
+    valid_gwf_package_set = set([
+        'dis', 'sto', 'npf', 'ic', 'oc', 'chd', 'wel', 'drn', 'riv', 'ghb', 'obs', 'oc'])
+    gwf_package_df = (
+        pd
+        .DataFrame(gwf_orig.name_file.packages.array)
+        .assign(ftype = lambda x: [ft[:-1].lower() for ft in x.ftype])
+    )
+    
+    gwf_package_set = set(gwf_package_df.ftype)
+    unhandled_paks = gwf_package_set.difference(valid_gwf_package_set)
+    if len(unhandled_paks)>0:
+        raise ValueError(f'The gwf package types {unhandled_paks} are not yet handled')
+    
+    # Make conversion dataframe
+    convert_df = (
+        grid_relate
+        .rename(columns = {'cellid_disv': 'cellid', 'prop_dis_area': 'area_factor'})
+        .loc[: ,['cellid', 'area_factor']]
+    )
+    
+    # Make a new model
+    # (MFSIM) Simulation --
+    sim_new = copy_empty_sim(sim_orig, sim_ws_new)
+    
+    # (TDIS) Temporal discretization --
+    tdis_new = copy_package(sim_orig, 'tdis', sim_new)
+    
+    # (GWF) Groundwater flow model
+    gwf_new = flopy.mf6.ModflowGwf(sim_new, modelname=model_name)
+    
+    # (IMS) Iterative model solution
+    ims_new = copy_package(sim_orig, 'ims', sim_new)
+    sim_new.register_ims_package(ims_new, [model_name])
+    
+    # (DISV) Discretization by vertices
+    disv_props_new = modify_gridgen_disv_props(disv_props)
+    # get original dis object
+    dis_orig = gwf_orig.get_package('dis')
+    # convert idomain, to new grid
+    idomain_disv = convert_array_dis_to_disv(dis_orig.idomain.data, convert_df)
+    disv_props_new['idomain'] = idomain_disv
+    # add other properties from dis
+    # for prop in ['length_units', 'xorigin', 'yorigin', 'angrot']:
+        # disv_props[prop] = getattr(dis_orig, prop).data
+    disv_props_new['length_units'] = getattr(dis_orig, 'length_units').data
+    # remove dis grid and add disv grid
+    disv = flopy.mf6.modflow.ModflowGwfdisv(gwf_new, **disv_props_new) 
+    
+    # Node properties (no multiplier, just assign original values)
+    # (STO) Storage
+    if gwf_orig.get_package('sto') != None:
+        # get steady-state info from gwf
+        steady_state = gwf_orig.modeltime.steady_state
+        # make dicts and add to manual param dict
+        steady_state_dict = {i:bool(val) for i,val in enumerate(steady_state)}
+        transient_dict = {i:bool(val==False) for i,val in enumerate(steady_state)}
+        manual_params_sto = {'transient': transient_dict, 'steady_state': steady_state_dict}
+        # make package
+        sto_new = refine_package(gwf_orig, 'sto', gwf_new, convert_df, manual_params=manual_params_sto)
+    
+    # (NPF) Node property flow
+    npf_new = refine_package(gwf_orig, 'npf', gwf_new, convert_df)
+    
+    # Boundary Conditions
+    # basic boundary conditions only (for now)
+    handled_boundary_packs = ['drn', 'ghb', 'riv', 'wel', 'chd']
+    bound_pack_names = (
+        gwf_package_df
+        .query(f'ftype in {handled_boundary_packs}')
+        .pname
+        .to_list()
+    )
+    # loop over all names and refine
+    for pack_name in bound_pack_names:
+        _ = refine_package(gwf_orig, pack_name, gwf_new, convert_df)
+    
+    # (IC) Initial conditions
+    ic_new = refine_package(gwf_orig, 'ic', gwf_new, convert_df)
+    
+    # (OC) Output control
+    if gwf_orig.get_package('oc') != None:
+        oc_new = copy_package(gwf_orig, 'oc', gwf_new)
+    
+    # (HDOBS) Head observation
+    if gwf_orig.get_package('hdobs') != None:
+        hdobs_orig = gwf_orig.get_package('hdobs')
+        new_continuous_data = {}
+        for fout, data in hdobs_orig.continuous.data.items():
+            ids = [convert_df.loc[[id], 'cellid'].values[0] for id in data['id']]
+            new_data = data.copy()
+            new_data['id'] = ids
+            new_continuous_data[fout] = new_data
+        hdobs_new = copy_package(
+            gwf_orig, 
+            'hdobs', 
+            gwf_new, 
+            manual_params = {'continuous': new_continuous_data}
+        )
+    return sim_new

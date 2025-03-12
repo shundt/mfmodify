@@ -1,6 +1,8 @@
 # IMPORT
+import copy
 import inspect
 import pandas as pd
+import flopy
 
 # VARIABLES
 
@@ -174,3 +176,13 @@ def lst_df_from_gwf_long(gwf):
         .drop(['pakname'], axis=1)
     )
     return lst_df_long
+
+def copy_empty_sim(sim, sim_ws):
+    params = list(get_parameter_set(sim))
+    param_dict = param_dict_from_list(sim, params)
+    return flopy.mf6.MFSimulation(sim_ws = sim_ws,**param_dict)
+
+def copy_sim(sim, sim_ws):
+    sim_new = copy.deepcopy(sim)
+    sim_new.set_sim_path(sim_ws)
+    return sim_new
