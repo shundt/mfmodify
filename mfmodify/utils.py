@@ -23,7 +23,7 @@ def round_date(ts, frequency='M'):
     elif frequency in ['h', 'min', 's', 'ms', 'D']:
         rounded = ts.round(frequency)  
     else:
-        raise ValueError("Frequency must be 'Y', 'M', 'D', 'h', 'min', 's', or 'ms")
+        raise ValueError("Frequency must be 'Y', 'M', 'D', 'h', 'min', 's', 'ms")
     return rounded
 
 def get_sp_data(sim, snap_dates='M'):
@@ -33,14 +33,16 @@ def get_sp_data(sim, snap_dates='M'):
         pd.DataFrame(tdis.perioddata.array) 
         .assign(endtime = lambda x: x.perlen.cumsum())
         .assign(starttime = lambda x: [0] + x.endtime[:-1].to_list())
-        .assign(start_date_time = lambda x: x.starttime.map(lambda x: start_date_time + pd.Timedelta(days=x)))
+        .assign(start_date_time = lambda x: 
+            x.starttime.map(lambda x: start_date_time + pd.Timedelta(days=x)))
         .assign(start_date_time = lambda x: x.start_date_time.dt.round('min')) 
         .assign(start_date = lambda x: pd.to_datetime(x.start_date_time.dt.date))
         .assign(snap_date = lambda x: x.start_date.apply(round_date, args=snap_dates))
         .assign(year = lambda x: x.snap_date.dt.year)
         .assign(month = lambda x: x.snap_date.dt.month)
         .assign(sp = lambda x: x.index)
-        .loc[:, ['sp', 'start_date', 'snap_date', 'year', 'month', 'perlen', 'nstp', 'tsmult', 'endtime', 'starttime', 'start_date_time']]
+        .loc[:, ['sp', 'start_date', 'snap_date', 'year', 'month', 'perlen', 
+            'nstp', 'tsmult', 'endtime', 'starttime', 'start_date_time']]
     )
     return sp_df
 
@@ -51,7 +53,8 @@ def get_parameter_set(pack, rem_att_set=set([])):
     constructor_params = inspect.signature(pack.__init__).parameters
     param_name_set = set(constructor_params.keys())
     # get list of attributes to extract and store in dictionary to unpack on instantiation
-    attribute_trans_list = (pack_att_set.intersection(param_name_set) - rem_att_set)
+    attribute_trans_list = (
+        pack_att_set.intersection(param_name_set) - rem_att_set)
     return attribute_trans_list
 
 def param_dict_from_list(pack, param_list):
@@ -158,7 +161,8 @@ def lst_df_from_gwf_long(gwf):
         .join(pakname_lut, on='pakname')
         .assign(pname = lambda x: x.pname.fillna(x.pakname))
         .assign(direction = lambda x: [x.split('_')[-1].lower() for x in x.pak])
-        .assign(bcompname = lambda x: [f'{nm}-{di}' for nm,di in zip(x.pname, x.direction)])
+        .assign(bcompname = lambda x: 
+            [f'{nm}-{di}' for nm,di in zip(x.pname, x.direction)])
     )
     # find list of components that have values
     comp_keep = (

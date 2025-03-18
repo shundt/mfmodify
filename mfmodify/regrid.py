@@ -1,4 +1,5 @@
 # IMPORT
+import shutil
 import os
 import inspect
 import numpy as np
@@ -9,7 +10,8 @@ from .utils import (
     param_dict_from_list, 
     get_ts_objects, 
     get_obs_objects,
-    copy_param_dict
+    copy_param_dict,
+    copy_empty_sim
 )
 
 # VARIABLES
@@ -137,9 +139,11 @@ def make_regridded_package_param_dict(pack, convert_df):
             file_entry = orig_value.get_file_entry()
             if 'LAYERED' in file_entry:
                 if 'CONSTANT' in file_entry:
-                    pack_param_dict[att] = [orig_value[x].data_const_value[0] for x in range(nlay)]
+                    pack_param_dict[att] = [
+                        orig_value[x].data_const_value[0] for x in range(nlay)]
                 else:
-                    pack_param_dict[att] = convert_array_dis_to_disv(orig_value.data, convert_df)
+                    pack_param_dict[att] = convert_array_dis_to_disv(
+                        orig_value.data, convert_df)
             else:
                 value = float(file_entry.split('CONSTANT')[1].strip())
                 pack_param_dict[att] = value
@@ -160,7 +164,8 @@ def make_regridded_package_param_dict(pack, convert_df):
         pack_param_dict['stress_period_data'] = sp_data_new
     return pack_param_dict
 
-def refine_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, convert_df, manual_params={}):
+def refine_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, convert_df, 
+    manual_params={}):
     # get package
     pack_orig = sim_or_gwf_orig.get_package(pack_name)
     # get a variable to point to the class of the package
@@ -256,13 +261,14 @@ def modify_gridgen_disv_props(disv_props_orig):
     disv_props['cell2d'] = cell2d_new
     return disv_props
 
-def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props):
+def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props, sim_ws_new):
     # Get original model
     gwf_orig = sim_orig.get_model(model_name)
     
     # Check if all packages in the gwf model can be converted by this function
     valid_gwf_package_set = set([
-        'dis', 'sto', 'npf', 'ic', 'oc', 'chd', 'wel', 'drn', 'riv', 'ghb', 'obs', 'oc'])
+        'dis', 'sto', 'npf', 'ic', 'oc', 'chd', 'wel', 'drn', 'riv', 'ghb', 
+        'obs', 'oc'])
     gwf_package_df = (
         pd
         .DataFrame(gwf_orig.name_file.packages.array)
@@ -272,7 +278,8 @@ def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props):
     gwf_package_set = set(gwf_package_df.ftype)
     unhandled_paks = gwf_package_set.difference(valid_gwf_package_set)
     if len(unhandled_paks)>0:
-        raise ValueError(f'The gwf package types {unhandled_paks} are not yet handled')
+        raise ValueError(
+            f'The gwf package types {unhandled_paks} are not yet handled')
     
     # Make conversion dataframe
     convert_df = (
@@ -317,9 +324,15 @@ def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props):
         # make dicts and add to manual param dict
         steady_state_dict = {i:bool(val) for i,val in enumerate(steady_state)}
         transient_dict = {i:bool(val==False) for i,val in enumerate(steady_state)}
-        manual_params_sto = {'transient': transient_dict, 'steady_state': steady_state_dict}
+        manual_params_sto = {
+            'transient': transient_dict, 'steady_state': steady_state_dict}
         # make package
-        sto_new = refine_package(gwf_orig, 'sto', gwf_new, convert_df, manual_params=manual_params_sto)
+        sto_new = refine_package(
+            gwf_orig, 
+            'sto', 
+            gwf_new, 
+            convert_df, 
+            manual_params=manual_params_sto)
     
     # (NPF) Node property flow
     npf_new = refine_package(gwf_orig, 'npf', gwf_new, convert_df)
