@@ -1,17 +1,18 @@
 # IMPORT
 import shutil
-import os
-import inspect
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import flopy
+from flopy.utils.gridgen import Gridgen
 from .utils import (
     get_parameter_set, 
     param_dict_from_list, 
     get_ts_objects, 
     get_obs_objects,
     copy_param_dict,
-    copy_empty_sim
+    copy_empty_sim,
+    copy_package
 )
 
 # VARIABLES
@@ -373,3 +374,156 @@ def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props, sim_ws
             manual_params = {'continuous': new_continuous_data}
         )
     return sim_new
+
+def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_level,
+    exe_name='gridgen_x64.exe', layers=None, tempdir='temp'):
+    # make sure all geometries are of the same type
+    geom_types = refine_gdf.geometry.type.unique()
+    if len(geom_types) == 1:
+        geom_type = geom_types[0].lower().replace('string', '')
+    else:
+        raise ValueError('Refinement features must have 1 and only 1 geometry type')
+    # make a gridgen object from original model
+    gridgen = Gridgen(modelgrid_orig, model_ws=tempdir, exe_name='gridgen_x64.exe')
+    # # add refinement features
+    if layers is None:
+        layers = list(range(modelgrid_orig.nlay))
+    gridgen.add_refinement_features(
+        refine_gdf.geometry.to_list(),
+        geom_type,
+        refine_level,
+        layers
+    )
+    gridgen.build()
+    return gridgen
+
+def make_grid_relate_table(gridgen):
+    # get the quadtree grid info as a geodataframe
+    qtgrid = gpd.GeoDataFrame(gridgen.qtra)
+    # gridgen.export()
+    layer_info = (
+        qtgrid
+        .groupby('layer')
+        .nodenumber
+        .count()
+        .to_frame()
+        .assign(nodes_above = lambda x: x.nodenumber.cumsum() - x.nodenumber[0])
+        .nodes_above
+    )
+    # make a grid relate table
+    grid_relate = (
+        qtgrid
+        .assign(nodenumber = lambda x: x.nodenumber - 1)
+        .assign(cellid_dis = lambda x: [(
+            int(l), int(r), int(c)) for l,r,c in zip(x.layer, x.row, x.col)])
+        .assign(cellid_disu = lambda x: x.nodenumber)
+        .join(layer_info, on='layer')
+        .assign(cell2d = lambda x: x.nodenumber - x.nodes_above)
+        .assign(cellid_disv = lambda x: [(
+            int(l), int(c2)) for l,c2 in zip(x.layer, x.cell2d)])
+        .assign(cell_area = lambda x: x.area)
+        .assign(prop_dis_area = lambda x: 
+                np.round(x.cell_area / x.groupby('cellid_dis').cell_area.transform('sum'), 5))
+        .set_index('cellid_dis')
+        .loc[:, ['cellid_disv', 'cellid_disu', 'prop_dis_area']]
+    )
+    return grid_relate
+
+def gridgen_intersect_gdf(gridgen, gdf):
+    intersect_dict = {}
+    for id, geom in zip(gdf.id, gdf.geometry):
+        # get type
+        geom_type = geom.geom_type.lower().replace('string', '')
+        # get xy coords
+        xys = list([list(geom.coords)])
+        intersect_prop_list = []
+        for layer in range(gridgen.get_nlay()):
+            # intersect
+            intersect_props = gridgen.intersect(xys, geom_type, layer)
+            intersect_prop_list.append(pd.DataFrame(intersect_props))
+        # add to dict
+        intersect_dict[id] = pd.concat(intersect_prop_list)
+    return intersect_dict
+
+def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None, 
+    model_name=None, sim_ws_new=None):
+    # get gwf model object
+    if model_name is None:
+        gwf_orig = sim_orig.get_model()
+        model_name = gwf_orig.name
+    else:
+        gwf_orig = sim_orig.get_model(model_name)
+    # get modelgrid object
+    modelgrid_orig = gwf_orig.modelgrid
+    # assign ids to refinement features if not already
+    if 'id' not in refine_gdf.columns:
+        refine_gdf['id'] = np.nan
+    n_ids = len(refine_gdf.id.dropna().unique())
+    if n_ids != refine_gdf.shape[0]:
+        print('Unnamed refinement features: all features being given generic "id" names')
+        refine_gdf['id'] = [f'feature{i}' for i in range(refine_gdf.shape[0])]
+    gridgen = grid_to_quadtree(modelgrid_orig, refine_gdf, refine_level, 
+        exe_name='gridgen_x64.exe', layers=layers)
+    # get grid relate table
+    grid_relate = make_grid_relate_table(gridgen)
+    # get disv props
+    disv_props = gridgen.get_gridprops_disv()
+    # get intersection properties (all layers)
+    intersect_prop_dict = gridgen_intersect_gdf(gridgen, refine_gdf)
+    # join with grid relate cellid info
+    node_ids = (
+        grid_relate
+        .assign(node = lambda x: x.cellid_disu)
+        .set_index('node')
+        .drop(['prop_dis_area'], axis=1)
+    )
+    # loop over all features and make new dictionary
+    feature_locs = {}
+    for id, int_props in intersect_prop_dict.items():
+        int_props_x = int_props.join(node_ids, on='nodenumber')
+        feature_locs[id] = int_props_x
+    # remove temp files
+    shutil.rmtree(gridgen.model_ws)
+    # assign sim_ws_new if not already
+    if sim_ws_new is None:
+        orig_path = sim_orig.sim_path
+        orig_name = orig_path.name
+        new_name = f'{orig_name}_refined_to_disv'
+        sim_ws_new = sim_orig.sim_path.with_name(new_name)
+    sim_new = refine_gwf_dis_to_disv(
+        sim_orig, model_name, grid_relate, disv_props, sim_ws_new)
+    return sim_new, grid_relate, feature_locs
+
+def refine_and_add_wel(sim_ws, well_xyz, refine_level, pump_rate,
+    sim_ws_new=None, model_name=None):
+    # get original simulation
+    sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
+    # make a refinement feature
+    well_xy = well_xyz[:2]
+    refine_gdf = gpd.GeoDataFrame({
+        'id': ['pumping_well'], 'geometry': [shapely.Point(well_xy)]})
+    # make a quadtree refined version of the model
+    sim_new, grid_relate, _ = quadtree_refine_dis_gwf(
+        sim_orig, 
+        refine_gdf, 
+        refine_level, 
+        layers=None, 
+        model_name=model_name, 
+        sim_ws_new=sim_ws_new
+    )
+    # get gwf model object
+    if model_name is None:
+        gwf_new = sim_new.get_model()
+        model_name = gwf_new.name
+    else:
+        gwf_new = sim_new.get_model(model_name)
+    # add a wel object
+    # get cellid
+    well_cellid = gwf_new.modelgrid.intersect(well_xyz[0], well_xyz[1], well_xyz[2])
+    wel_spd = {0: [[well_cellid, pump_rate]]}
+    # make wel file
+    _ = flopy.mf6.ModflowGwfwel(gwf_new, stress_period_data=wel_spd)
+    # write and run simulation
+    sim_new.write_simulation()
+    sim_new.run_simulation()
+    return sim_new, grid_relate, well_cellid

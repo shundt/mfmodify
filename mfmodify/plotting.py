@@ -191,3 +191,31 @@ def plot_xs_across_pt(gwf, xs_line, xs_ylim=None, nlevs=10, zoom_rel_line=1.5):
     ax_xs.set_ylim(xs_ylim)
     fig.tight_layout()
     return fig
+
+def plot_interpolated_ws(gwf, xs_line, ax, color='black', label=''):
+    # get data
+    kstpkper = gwf.output.head().get_kstpkper()[-1]
+    # get heads
+    hds = gwf.output.head().get_data(kstpkper=kstpkper)
+    # get water table at final step
+    wt = get_water_table(hds)
+    # get cross-section plotter
+    xs = flopy.plot.PlotCrossSection(
+        model=gwf,
+        line={'line': xs_line},
+        ax=ax,
+        geographic_coords=True
+    )
+    # plot water table
+    surf = xs.plot_surface(wt, masked_values=[1e30], color="black", lw=0.0)
+    # get centers of lines for interpolated surface plot
+    int_surf_xs = []
+    int_surf_ys = []
+    for lines in surf:
+        line = lines[0]
+        xs, ys = line.get_data()
+        int_surf_xs.append(xs.mean())
+        int_surf_ys.append(ys.mean())
+    # plot interpolated surface
+    int_surf = ax.plot(int_surf_xs, int_surf_ys, color=color, lw=1, label=label)
+    return int_surf
