@@ -2,6 +2,7 @@
 import shutil
 import numpy as np
 import pandas as pd
+import shapely
 import geopandas as gpd
 import flopy
 from flopy.utils.gridgen import Gridgen
@@ -494,12 +495,12 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None,
         sim_orig, model_name, grid_relate, disv_props, sim_ws_new)
     return sim_new, grid_relate, feature_locs
 
-def refine_and_add_wel(sim_ws, well_xyz, refine_level, pump_rate,
+def refine_and_add_wel(sim_ws, well_xy, well_layer, refine_level, pump_rate,
     sim_ws_new=None, model_name=None):
     # get original simulation
     sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     # make a refinement feature
-    well_xy = well_xyz[:2]
+    # well_xy = well_xyz[:2]
     refine_gdf = gpd.GeoDataFrame({
         'id': ['pumping_well'], 'geometry': [shapely.Point(well_xy)]})
     # make a quadtree refined version of the model
@@ -519,7 +520,11 @@ def refine_and_add_wel(sim_ws, well_xyz, refine_level, pump_rate,
         gwf_new = sim_new.get_model(model_name)
     # add a wel object
     # get cellid
-    well_cellid = gwf_new.modelgrid.intersect(well_xyz[0], well_xyz[1], well_xyz[2])
+    # well_cellid = gwf_new.modelgrid.intersect(well_xyz[0], well_xyz[1], well_xyz[2])
+    well_cellid = (
+        well_layer,
+        gwf_new.modelgrid.intersect(well_xy[0], well_xy[1])
+    )
     wel_spd = {0: [[well_cellid, pump_rate]]}
     # make wel file
     _ = flopy.mf6.ModflowGwfwel(gwf_new, stress_period_data=wel_spd)
