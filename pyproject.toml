@@ -12,18 +12,22 @@ authors = [
     { name = "Stephen Hundt", email = "shundt@usgs.gov" }
 ]
 homepage = "https://github.com/shundt/mfmodify"
-requires-python = ">=3.6"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent"
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Hydrology" 
 ]
-
-[project.dependencies]
-numpy = "*"
-pandas = "*"
-matplotlib = "*"
-flopy = "*"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy >=1.20.3",
+    "pandas >=2.0.0",
+    "matplotlib >=1.4.0",
+    "flopy >=3.9.2",
+    "geopandas >=1.0.1",
+    "shapely >=2.0"
+]
 
 [tool.setuptools.packages.find]
 include = ["mf_modify", "mf_modify.*"]

@@ -1,6 +1,5 @@
 # IMPORT
 import os
-import inspect
 import numpy as np 
 import pandas as pd
 import flopy
@@ -15,6 +14,7 @@ from .utils import (
 )
 
 # TODO: Add other boundary types (now just drn, ghb, riv, wel)
+# TODO: Make the new time start at 2100
 
 # FUNCTIONS
 # functions within create_scenario_from_years

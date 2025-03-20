@@ -3,134 +3,85 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import geopandas as gpd
+import shapely
 import flopy
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from mfmodify.regrid import (
-    refine_and_add_wel
+    quadtree_refine_dis_gwf
 )
-
 from mfmodify.plotting import (
     make_xs_line_along_dis_grid,
     plot_xs_across_pt,
-    plot_interpolated_ws
+    plot_compare_lstbud_gwfs
 )
 
 # INPUT
-sim_ws_orig = os.path.join('scenario_tests', 'scenario-original_historic_subset')
-new_sim_base_dir = os.path.join('regrid_tests')
-sim_ws_new = os.path.join(new_sim_base_dir, 'scenario-baseline_regrid')
-sim_ws_base = os.path.join(new_sim_base_dir, 'scenario-baseline')
-model_name = 'mf6-tv_hist'
-# pumping well
-well_xyz = (2312990, 1400989, 810)
-pump_rate = -2500
-# switches
-rewrite_base = False
-#%%
-# FUNCTIONS
+sim_ws_orig = os.path.join('regrid_tests', 'tvgwfm-average_scenario')
+sim_ws_new = os.path.join('regrid_tests', 'tvgwfm-average_scenario-refined_same_stresses')
+refine_xys = [(2300000, 1390000), (2320000, 1410000)]
+refine_level = 5
 
 #%%
 # BODY
-if rewrite_base:
-    # load objects from existing model
-    sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws_orig, verbosity_level=0)
-    gwf_orig = sim_orig.get_model(model_name=model_name)
-    # Make a copy of sim to add a single head obs
-    sim_orig.set_sim_path(sim_ws_base)
-    # Make an OC package to print both head and budget
-    oc_orig = flopy.mf6.ModflowGwfoc(
-        gwf_orig,
-        budget_filerecord=f'{model_name}.bud',
-        head_filerecord=f'{model_name}.hds',
-        saverecord=[('HEAD', 'ALL'), ('BUDGET', 'ALL')]
-    )
-    # write the simulation
-    sim_orig.write_simulation()
-    # run simulation
-    sim_orig.run_simulation()
-
-# loop over a bunch of refinement levels
-for refine_level in range(1, 12):
-    sim_ws_new = os.path.join(
-        new_sim_base_dir, 
-        f'scenario-baseline-pumping-refined_{refine_level}')
-    sim_new, grid_relate, well_cellid  = refine_and_add_wel(
-        sim_ws_base, 
-        well_xyz, 
-        refine_level, 
-        pump_rate, 
-        sim_ws_new=sim_ws_new,
-        model_name=model_name
-    )
+# load original simulation
+sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws_orig, verbosity_level=0)
 #%%
-# Compare all obs file output
-# plot_compare_obs_sim(sim_pump_dis.sim_path, sim_pump_disv.sim_path)
-# Compare budget time series from the list files
-# plot_compare_lstbud_gwfs(gwf_pump_dis, gwf_pump_disv)
+# create a refinement geodataframe (simple line, can be point, line, or polygon)
+refine_linestring = shapely.geometry.LineString(refine_xys)
+refine_gdf = gpd.GeoDataFrame({'id': ['feat1'], 'geometry': [refine_linestring]})
 
+# plot grid and refinement line
+fig, ax = plt.subplots(1,1)
+sim_orig.get_model().modelgrid.plot(ax=ax)
+refine_gdf.plot(ax=ax)
+
+#%%
+# refine simulation at point
+sim_new, grid_relate, feature_locs = quadtree_refine_dis_gwf(
+    sim_orig,
+    refine_gdf,
+    refine_level,
+    sim_ws_new=sim_ws_new
+)
+#%%
+# plot new grid and refinement line
+# plot grid and refinement line
+fig, ax = plt.subplots(1,1)
+sim_new.get_model().modelgrid.plot(ax=ax)
+refine_gdf.plot(ax=ax)
+
+#%%
+# write files
+sim_new.write_simulation()
+# run simulation
+sim_new.run_simulation()
+
+#%%
+# get gwf objects
+gwf_orig = (
+    flopy.mf6.MFSimulation
+    .load(sim_ws=sim_ws_orig, verbosity_level=0)
+    .get_model()
+)
+gwf_new = sim_new.get_model()
+#%%
+# Compare the lst file budgets
+# plot_compare_lstbud_gwfs(gwf_orig, gwf_new, names=['original', 'refined'])
 #%%
 # Plot results on map and along cross-section along refinement point
 # make a line about the refinement point
 # get the well x,y
-xy = well_xy
-# get original gwf
-gwf_orig = (
-    flopy.mf6.MFSimulation
-    .load(sim_ws=sim_ws_orig, verbosity_level=0)
-    .get_model(model_name=model_name)
-)
-xs_line = make_xs_line_along_dis_grid(gwf_orig, xy, 1750, along='row')
-#%%
+xy = refine_linestring.centroid.coords[0]
+xs_line = make_xs_line_along_dis_grid(gwf_orig, xy, 7500, along='row')
 # get plots
-# find all simulation folders
-from glob import glob
-sim_folders = glob(os.path.join(new_sim_base_dir, 'scenario-baseline-pumping-refined_*'))
-sim_folders_sub = sim_folders[:-1]
-refine_levels = [int(f.split('_')[-1]) for f in sim_folders_sub]
-sim_folders_sorted = [x for _, x in sorted(zip(refine_levels, sim_folders_sub))]
-for sim_folder in sim_folders:
-    sim_name = sim_folder.split(os.sep)[-1]
-    # load simulation
-    sim = flopy.mf6.MFSimulation.load(sim_ws=sim_folder, verbosity_level=0)
-    # get model
-    gwf = sim.get_model(model_name=model_name)
-    # plot
-    fig_new = plot_xs_across_pt(gwf, xs_line, xs_ylim=[300, 800])
-# fig_orig = plot_xs_across_pt(gwf_orig, xs_line, xs_ylim=[300, 800])
-# fig_new = plot_xs_across_pt(gwf_new, xs_line, xs_ylim=[300, 800])
-# fig_orig = plot_xs_across_pt(gwf_pump_dis, xs_line, xs_ylim=[300, 800], nlevs=20, zoom_rel_line=0.5)
-# fig_new = plot_xs_across_pt(gwf_pump_disv, xs_line, xs_ylim=[300, 800], nlevs=30, zoom_rel_line=0.5)
+# plot original water table and xs
+fig_orig = plot_xs_across_pt(gwf_orig, xs_line, xs_ylim=[500, 800])
+# plot new water table and xs
+fig_new = plot_xs_across_pt(gwf_new, xs_line, xs_ylim=[500, 800])
 
-# compare heads everywhere
 
-#%%
-# sort folders by refine level
-# get a list of colors for each folder from the matplotlib cmap cmap_plot
-cmap_plot = plt.get_cmap('tab10')
-cmap_vals = np.linspace(0, 1, len(sim_folders_sorted))
-colors = [cmap_plot(c) for c in cmap_vals]
-# create figure and ax
-fig, ax = plt.subplots(figsize=(10, 7.5))
-for sim_folder, color in zip(sim_folders_sorted, colors):
-    sim_name = sim_folder.split(os.sep)[-1].split('-')[-1]
-    # load simulation
-    sim = flopy.mf6.MFSimulation.load(sim_ws=sim_folder, verbosity_level=0)
-    # get model
-    gwf = sim.get_model(model_name=model_name)
-    # get minimum node size
-    min_areas = gwf.modelgrid.geo_dataframe.geometry.area.min()
-    min_length = int(np.round(np.sqrt(min_areas),0))
-    # plot name
-    label = f'{sim_name} - (min node size: {min_length} m)'
-    # plot
-    int_surf = plot_interpolated_ws(gwf, xs_line, ax, color=color, label=label)
-# add legend
-ax.legend()
-xs,_ = int_surf[0].get_data()
-ax.set_ylim([-200, 1000])
-ax.set_xlim([xs[1], xs[-3]])
-fig
 #%%
 
 
