@@ -6,3 +6,4 @@ examples/regrid_tests/*
 *.bud
 *.ipynb
 */__pycache__/*
+temp/

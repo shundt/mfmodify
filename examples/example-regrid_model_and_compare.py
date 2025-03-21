@@ -14,13 +14,13 @@ from mfmodify.regrid import (
 from mfmodify.plotting import (
     make_xs_line_along_dis_grid,
     plot_xs_across_pt,
-    plot_compare_lstbud_gwfs
+    plot_compare_final_vols
 )
 
 # INPUT
 sim_ws_orig = os.path.join('regrid_tests', 'tvgwfm-average_scenario')
 sim_ws_new = os.path.join('regrid_tests', 'tvgwfm-average_scenario-refined_same_stresses')
-refine_xys = [(2300000, 1390000), (2320000, 1410000)]
+refine_xys = [(2275000, 1370000), (2295000, 1390000)]
 refine_level = 5
 
 #%%
@@ -67,22 +67,5 @@ gwf_orig = (
 )
 gwf_new = sim_new.get_model()
 #%%
-# Compare the lst file budgets
-# plot_compare_lstbud_gwfs(gwf_orig, gwf_new, names=['original', 'refined'])
-#%%
-# Plot results on map and along cross-section along refinement point
-# make a line about the refinement point
-# get the well x,y
-xy = refine_linestring.centroid.coords[0]
-xs_line = make_xs_line_along_dis_grid(gwf_orig, xy, 7500, along='row')
-# get plots
-# plot original water table and xs
-fig_orig = plot_xs_across_pt(gwf_orig, xs_line, xs_ylim=[500, 800])
-# plot new water table and xs
-fig_new = plot_xs_across_pt(gwf_new, xs_line, xs_ylim=[500, 800])
-
-
-#%%
-
-
-
+# Compare the final list entries as bar charts for each type
+fig = plot_compare_final_vols(gwf_orig, gwf_new, names=['gwf1', 'gwf2'])

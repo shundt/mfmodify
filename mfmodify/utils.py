@@ -117,9 +117,10 @@ def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
 def get_gwf_package_df(gwf):
     gwf_package_df = (
         pd.DataFrame(gwf.name_file.packages.array)
-        .assign(ftype = lambda x: [ft[:-1] for ft in x.ftype])
+        .assign(ftype = lambda x: [ft[:-1].lower() for ft in x.ftype])
         .assign(dummy = 1)
-        .assign(paknum = lambda x: x.groupby('ftype').dummy.transform('cumsum') - 1)
+        # .sort_values(['ftype', 'pname'], ascending=True)
+        .assign(paknum = lambda x: x.groupby('ftype').dummy.transform('cumsum'))
         .assign(paknum = lambda x: [nm if nm!=0 else '' for nm in x.paknum])
         .assign(pakname = lambda x: [f'{tp}{nm}' for nm, tp in zip(x.paknum, x.ftype)])
         .drop(['dummy', 'paknum'], axis=1)
@@ -180,6 +181,33 @@ def lst_df_from_gwf_long(gwf):
         .drop(['pakname'], axis=1)
     )
     return lst_df_long
+
+def get_final_total_lst(gwf):
+    # get the simulation
+    sim = gwf.simulation
+    # get the list
+    lst = gwf.output.list()
+    # get cumulative volumes as df
+    lst_df_cumulative = lst.get_dataframes()[1]
+    # do all the manipulation
+    lst_final = (
+        lst_df_cumulative
+        .drop(['IN-OUT', 'PERCENT_DISCREPANCY'], axis=1)
+        .iloc[-1, :]
+        .to_frame()
+        .assign(total_volume = lambda x: x.iloc[:, 0])
+        .reset_index()
+        .rename(columns={'index': 'component'})
+        .assign(direction = lambda x: [co.split('_')[-1].lower() for co in x.component])
+        .assign(btype = lambda x: [co[:3].lower() for co in x.component])
+        .groupby(['btype', 'direction'])
+        .total_volume
+        .sum()
+        .reset_index()
+        .sort_values(['direction', 'btype'])
+        .set_index('direction')
+    )
+    return lst_final
 
 def copy_empty_sim(sim, sim_ws):
     params = list(get_parameter_set(sim))
