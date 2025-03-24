@@ -1,3 +1,10 @@
+# The scenario functions enable users to quickly generate scenarios by reassembling years from the historical data. Reusing past years can offer several advantages:
+# 1. It is easier than creating boundary stresses from downscaled climate scenarios.
+# 2. It is likely more accurate than ad-hoc models that may not accurately 
+#    capture the complex relationship between weather and groundwater stresses.
+# 3. Past years are familiar and easier to communicate to stakeholders. For example: 
+#    "here is a scenario in which water year like 2013 occurs three years in a row".
+# 4. It is easy to generate an ensemble of scenarios.
 #%%
 # IMPORT
 import os

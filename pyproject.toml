@@ -7,11 +7,9 @@ name = "mfmodify"
 version = "0.1.0"
 description = "Functions for reading and modifying existing MODFLOW 6 models."
 readme = "README.md"
-readme-content-type = "text/markdown"
 authors = [
     { name = "Stephen Hundt", email = "shundt@usgs.gov" }
 ]
-homepage = "https://github.com/shundt/mfmodify"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

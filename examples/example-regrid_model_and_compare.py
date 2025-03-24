@@ -8,14 +8,8 @@ import shapely
 import flopy
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from mfmodify.regrid import (
-    quadtree_refine_dis_gwf
-)
-from mfmodify.plotting import (
-    make_xs_line_along_dis_grid,
-    plot_xs_across_pt,
-    plot_compare_final_vols
-)
+from mfmodify.regrid import quadtree_refine_dis_gwf
+from mfmodify.plotting import  plot_compare_final_vols
 
 # INPUT
 sim_ws_orig = os.path.join('regrid_tests', 'tvgwfm-average_scenario')

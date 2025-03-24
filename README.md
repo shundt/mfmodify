@@ -1,7 +1,11 @@
 # mfmodify
 
 ## Description
-`mfmodify` includes functions for reading and modifying existing MODFLOW 6 models, aimed at analysis while leveraging existing model files. 
+`mfmodify` includes functions for reading and modifying existing MODFLOW 6 models.
+This project has mostly been written in response to specific project needs, but
+the tools may have more general application. 
+
+Building model scenarios or editing the grid of a MODFLOW 6 model can be a substantial undertaking. This library seeks to maximize the use of existing files from a model's historical matching period, aiming to leverage the information already present in the MODFLOW input files as much as possible.
 
 ### Modules
 - **scenario**: 
