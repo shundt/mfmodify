@@ -8,3 +8,7 @@ from .regrid import (
     quadtree_refine_dis_gwf,
     refine_and_add_wel
 )
+
+from .utils import (
+    add_new_hdobs
+)

@@ -148,6 +148,19 @@ def lst_df_from_gwf(gwf):
     )
     return lst_df
 
+def annual_summary_from_gwf(gwf):
+    lst_df = lst_df_from_gwf(gwf)
+    # annual summary
+    ann_list_df = (
+        lst_df
+        .groupby('year')
+        .sum()
+        .assign(complete_year = lambda x: x.month == x.month.max())
+        .query('complete_year')
+        .loc[:, ['total_recharge', 'total_discharge', 'net_storage']]
+    )
+    return ann_list_df
+
 def lst_df_from_gwf_long(gwf):
     # get gwf package info
     gwf_package_df = get_gwf_package_df(gwf)
@@ -218,3 +231,58 @@ def copy_sim(sim, sim_ws):
     sim_new = copy.deepcopy(sim)
     sim_new.set_sim_path(sim_ws)
     return sim_new
+
+def add_new_hdobs(gwf, hdobs_continuous, digits=5):
+    if gwf.get_package('hdobs') is None:
+        model_name = gwf.name
+        hdobs = flopy.mf6.modflow.mfutlobs.ModflowUtlobs(
+            gwf,
+            digits=digits,
+            continuous=hdobs_continuous,
+            filename=f'{model_name}.head.obs',
+            pname='hdobs'
+        )
+    else:
+        hdobs_orig = gwf.get_package('hdobs')
+        hdobs_params = copy_param_dict(hdobs_orig)
+        new_cont_dict = {
+            **hdobs_params['continuous'],
+            **hdobs_continuous
+        }
+        hdobs_params['continuous'] = new_cont_dict
+        hdobs_params['digits'] = digits
+        hdobs = flopy.mf6.modflow.mfutlobs.ModflowUtlobs(
+            gwf,
+            **hdobs_params
+        )
+    return hdobs
+
+def get_idomain_df(gwf):
+    # get dis and modelgrid
+    dis = gwf.get_package('dis')
+    grid = gwf.modelgrid
+    # get idomain and flatten it
+    idomain = dis.idomain.data
+    idomain_flat = idomain.ravel()
+    indices_flat_npint = [index.ravel() for index in np.indices(idomain.shape)]
+    indices_flat = [getattr(x, 'tolist', lambda: x)() for x in indices_flat_npint]
+    # get cellids and nodeids
+    cellids = list(zip(*indices_flat))
+    nodeids = grid.get_node(cellids)
+    # make a dataframe
+    idomain_df = pd.DataFrame({
+        'nodeid': nodeids,
+        'cellid': cellids, 
+        'idomain': idomain_flat,
+    })
+    if len(indices_flat) > 1:
+        idomain_df = idomain_df.assign(layer = indices_flat[0])
+    if len(indices_flat) == 2:
+        idomain_df = idomain_df.assign(icell2d = indices_flat[1])
+    elif len(indices_flat) == 3:
+        idomain_df = (
+            idomain_df
+            .assign(row = indices_flat[1])
+            .assign(column = indices_flat[2])
+        )
+    return idomain_df

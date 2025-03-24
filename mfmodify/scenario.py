@@ -730,3 +730,33 @@ def scenario_from_weighted_mean_of_years(sim_ws, new_sim_ws, ic_mon_year, scenar
     # return results
     return sim_new, new_pack_dict
 
+def manual_reweight_series(data_series, relative_weights):
+    n_bins = len(relative_weights)
+    n_rows = len(data_series)
+    # add a check to make sure that n_bins is >= number of data series rows
+    if n_bins > n_rows:
+        raise ValueError("The length of relative_weights must be less than or equal to the number of rows in data_series.")
+    # find the lowest common multiple of the lengths
+    lcm = abs(n_bins * n_rows) // gcd(n_bins, n_rows)
+    # get the number of values in each bin
+    bin_len = lcm / n_bins
+    # expand the data_series to the size of the lcm
+    n_dup = int(lcm / n_rows)
+    data_series_exp = (
+        pd.concat([data_series]*n_dup)
+        .sort_values()
+        .to_frame()
+        .assign(bin = (np.arange(lcm) // bin_len).astype('int'))
+    )
+    # get the reweighted series
+    series_list = []
+    for i_bin, i_df in data_series_exp.groupby('bin'):
+        rel_weight = relative_weights[i_bin]
+        series_list.extend([i_df] * rel_weight)
+    reweight_series = (
+        pd
+        .concat(series_list)
+        .iloc[:,0]
+        .sort_values()
+    )
+    return reweight_series

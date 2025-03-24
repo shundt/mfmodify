@@ -16,8 +16,9 @@ import flopy
 # import mf_modify
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from mfmodify import get_sp_data, scenario_from_repeat_years
-from mfmodify.scenario import copy_param_dict 
+from mfmodify import scenario_from_repeat_years, add_new_hdobs
+from mfmodify.scenario import manual_reweight_series
+from mfmodify.utils import lst_df_from_gwf, annual_summary_from_gwf, get_idomain_df
 
 #%%
 # INPUT
@@ -59,101 +60,6 @@ def plot_ann_summary_hist(ann_df):
     fig.tight_layout()
     return fig
 
-def manual_reweight_series(data_series, relative_weights):
-    n_bins = len(relative_weights)
-    n_rows = len(data_series)
-    # add a check to make sure that n_bins is >= number of data series rows
-    if n_bins > n_rows:
-        raise ValueError("The length of relative_weights must be less than or equal to the number of rows in data_series.")
-    # find the lowest common multiple of the lengths
-    lcm = abs(n_bins * n_rows) // gcd(n_bins, n_rows)
-    # get the number of values in each bin
-    bin_len = lcm / n_bins
-    # expand the data_series to the size of the lcm
-    n_dup = int(lcm / n_rows)
-    data_series_exp = (
-        pd.concat([data_series]*n_dup)
-        .sort_values()
-        .to_frame()
-        .assign(bin = (np.arange(lcm) // bin_len).astype('int'))
-    )
-    # get the reweighted series
-    series_list = []
-    for i_bin, i_df in data_series_exp.groupby('bin'):
-        rel_weight = relative_weights[i_bin]
-        series_list.extend([i_df] * rel_weight)
-    reweight_series = (
-        pd
-        .concat(series_list)
-        .iloc[:,0]
-        .sort_values()
-    )
-    return reweight_series
-
-def lst_df_from_gwf(gwf):
-    # get listing file
-    lst = gwf.output.list()
-    # get timing information
-    sim = gwf.simulation
-    sp_df = get_sp_data(sim)
-    start_datetime = sim.get_package('tdis').start_date_time.data
-    # get the listing dataframes
-    lst_df_tuples = lst.get_dataframes(start_datetime = start_datetime)
-    # get and format the dataframe
-    i = 0
-    lst_df = (
-        lst_df_tuples[i]
-        .reset_index(drop=True)
-        .join(sp_df.loc[:, ['sp', 'year', 'month']])
-        .assign(total_recharge = lambda x: x.TOTAL_IN - x['STO-SS_IN'])
-        .assign(total_discharge = lambda x: x.TOTAL_OUT - x['STO-SS_OUT'])
-        .assign(net_storage = lambda x: x['STO-SS_OUT'] - x['STO-SS_IN'])
-    )
-    return lst_df
-
-def annual_summary_from_gwf(gwf):
-    lst_df = lst_df_from_gwf(gwf)
-    # annual summary
-    ann_list_df = (
-        lst_df
-        .groupby('year')
-        .sum()
-        .assign(complete_year = lambda x: x.month == x.month.max())
-        .query('complete_year')
-        .loc[:, ['total_recharge', 'total_discharge', 'net_storage']]
-    )
-    return ann_list_df
-
-def get_idomain_df(gwf):
-    # get dis and modelgrid
-    dis = gwf.get_package('dis')
-    grid = gwf.modelgrid
-    # get idomain and flatten it
-    idomain = dis.idomain.data
-    idomain_flat = idomain.ravel()
-    indices_flat_npint = [index.ravel() for index in np.indices(idomain.shape)]
-    indices_flat = [getattr(x, 'tolist', lambda: x)() for x in indices_flat_npint]
-    # get cellids and nodeids
-    cellids = list(zip(*indices_flat))
-    nodeids = grid.get_node(cellids)
-    # make a dataframe
-    idomain_df = pd.DataFrame({
-        'nodeid': nodeids,
-        'cellid': cellids, 
-        'idomain': idomain_flat,
-    })
-    if len(indices_flat) > 1:
-        idomain_df = idomain_df.assign(layer = indices_flat[0])
-    if len(indices_flat) == 2:
-        idomain_df = idomain_df.assign(icell2d = indices_flat[1])
-    elif len(indices_flat) == 3:
-        idomain_df = (
-            idomain_df
-            .assign(row = indices_flat[1])
-            .assign(column = indices_flat[2])
-        )
-    return idomain_df
-
 def get_spaced_cells(node_cells, ncells):
     total_cells = len(node_cells)
     step = total_cells / ncells
@@ -164,31 +70,6 @@ def get_spaced_cells(node_cells, ncells):
         .cellid.tolist()
     )
     return spaced_cells
-
-def add_new_hdobs(gwf, hdobs_continuous, digits=5):
-    if gwf.get_package('hdobs') is None:
-        model_name = gwf.name
-        hdobs = flopy.mf6.modflow.mfutlobs.ModflowUtlobs(
-            gwf,
-            digits=digits,
-            continuous=hdobs_continuous,
-            filename=f'{model_name}.head.obs',
-            pname='hdobs'
-        )
-    else:
-        hdobs_orig = gwf.get_package('hdobs')
-        hdobs_params = copy_param_dict(hdobs_orig)
-        new_cont_dict = {
-            **hdobs_params['continuous'],
-            **new_hdobs_continuous
-        }
-        hdobs_params['continuous'] = new_cont_dict
-        hdobs_params['digits'] = digits
-        hdobs = flopy.mf6.modflow.mfutlobs.ModflowUtlobs(
-            gwf,
-            **hdobs_params
-        )
-    return hdobs
 
 #%%
 # load historical model
