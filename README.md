@@ -5,7 +5,7 @@
 This project has mostly been written in response to specific project needs, but
 the tools may have more general application. 
 
-Building model scenarios or editing the grid of a MODFLOW 6 model can be a substantial undertaking. This library seeks to maximize the use of existing files from a model's historical matching period, aiming to leverage the information already present in the MODFLOW input files as much as possible.
+Building model scenarios or editing the grid of a MODFLOW 6 model can be a substantial undertaking. This library aims to leverage the information from a model's history-matching period - reusing MODFLOW input files as much as possible.
 
 ### Modules
 - **scenario**: 

@@ -28,4 +28,4 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["mf_modify", "mf_modify.*"]
+include = ["mfmodify", "mfmodify.*"]
