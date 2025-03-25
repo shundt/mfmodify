@@ -496,7 +496,7 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None,
     return sim_new, grid_relate, feature_locs
 
 def refine_and_add_wel(sim_ws, well_xy, well_layer, refine_level, pump_rate,
-    sim_ws_new=None, model_name=None):
+    sim_ws_new=None, model_name=None, silent=True):
     # get original simulation
     sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     # make a refinement feature
@@ -529,6 +529,6 @@ def refine_and_add_wel(sim_ws, well_xy, well_layer, refine_level, pump_rate,
     # make wel file
     _ = flopy.mf6.ModflowGwfwel(gwf_new, stress_period_data=wel_spd)
     # write and run simulation
-    sim_new.write_simulation()
-    sim_new.run_simulation()
+    sim_new.write_simulation(silent=silent)
+    sim_new.run_simulation(silent=silent)
     return sim_new, grid_relate, well_cellid
