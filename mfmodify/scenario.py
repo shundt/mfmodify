@@ -194,7 +194,8 @@ def closest_value_below(value, list):
     closest_value = max(list_filtered, key=lambda x: x - value)
     return closest_value
 
-def scenario_from_repeat_years(sim_ws, scenario_years, ic_mon_year, new_sim_ws='dummy', start_date_time='2050-01-01t00:00:00'):
+def scenario_from_repeat_years(sim_ws, scenario_years, ic_mon_year, new_sim_ws='dummy', 
+    start_date_time='2050-01-01t00:00:00'):
     """
     Create a simulation scenario by repeating specified years.
 
@@ -621,7 +622,50 @@ def weight_mean_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, sp_data_lut,
                 i+=1
     return pack_new
 
-def scenario_from_weighted_mean_of_years(sim_ws, new_sim_ws, ic_mon_year, scenario_years_and_weights, start_date_time='2050-01-01t00:00:00'):
+def scenario_from_weighted_mean_of_years(sim_ws, scenario_years_and_weights, 
+    ic_mon_year, new_sim_ws='dummy', start_date_time='2050-01-01t00:00:00'):
+    """
+    Create a new simulation scenario by generating a weighted mean of specified years.
+
+    Parameters:
+    sim_ws (str): Path to the original simulation workspace.
+    new_sim_ws (str): Path to the new simulation workspace where the modified scenario will be saved.
+    ic_mon_year (tuple): Initial condition month and year as a tuple (month, year).
+    scenario_years_and_weights (list of list of tuples): A list where each element is a list of tuples,
+        with each tuple containing a year (int) and its corresponding weight (float).
+    start_date_time (str, optional): Start date and time for the new simulation. Default is '2050-01-01t00:00:00'.
+
+    Returns:
+    flopy.mf6.MFSimulation: The new simulation object with the modified scenario.
+
+    This function creates a new simulation scenario by calculating a weighted mean of stress periods
+    based on the specified years and their weights. It adjusts the temporal discretization, stress
+    period data, and other model components accordingly. The initial condition is set based on the
+    provided month and year.
+
+    Steps:
+    1. Load the original simulation from the specified workspace.
+    2. Extract stress period information and create a lookup table for mapping original stress periods
+       to new stress periods based on the provided weights.
+    3. Generate a new temporal discretization package (TDIS) with updated stress period data.
+    4. Copy and modify other model components (e.g., groundwater flow model, boundary conditions,
+       storage, and observation packages) to reflect the new stress period structure.
+    5. Set the initial condition using the specified month and year.
+    6. Save the new simulation to the specified workspace.
+
+    Raises:
+    ValueError: If the groundwater flow model cannot be loaded from the original simulation workspace.
+
+    Example:
+    >>> sim_ws = "path/to/original/simulation"
+    >>> new_sim_ws = "path/to/new/simulation"
+    >>> ic_mon_year = (1, 2050)
+    >>> scenario_years_and_weights = [
+    >>>     [(2050, 0.5), (2051, 0.5)],
+    >>>     [(2052, 0.7), (2053, 0.3)]
+    >>> ]
+    >>> sim_new = scenario_from_weighted_mean_of_years(sim_ws, new_sim_ws, ic_mon_year, scenario_years_and_weights)
+    """
     print(f'Loading simulation from {sim_ws}') 
     sim = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     # get timing information
