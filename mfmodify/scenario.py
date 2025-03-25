@@ -728,7 +728,7 @@ def scenario_from_weighted_mean_of_years(sim_ws, new_sim_ws, ic_mon_year, scenar
         new_pack_dict[pack_name] = weight_mean_package(gwf, pack_name, gwf_new, sp_data_lut)
     
     # return results
-    return sim_new, new_pack_dict
+    return sim_new
 
 def manual_reweight_series(data_series, relative_weights):
     n_bins = len(relative_weights)

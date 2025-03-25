@@ -19,7 +19,7 @@ and distribution information.
 
 
 System command used to initiate simulation:
-mf6
+C:\models\tvswa\mfmodify\examples\mf6.exe
 
 MODFLOW was compiled using uniform precision.
 
@@ -34540,6 +34540,6 @@ Logical Variables
 
 
  
- Run end date and time (yyyy/mm/dd hh:mm:ss): 2025/01/23 12:15:17
- Elapsed run time:  2 Minutes, 55.200 Seconds
+ Run end date and time (yyyy/mm/dd hh:mm:ss): 2025/03/24 16:32:56
+ Elapsed run time:  2 Minutes, 30.867 Seconds
  Normal termination of simulation.
