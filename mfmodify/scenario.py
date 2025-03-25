@@ -307,7 +307,7 @@ def scenario_from_repeat_years(sim_ws, scenario_years, ic_mon_year, new_sim_ws='
     for pack_name in bound_pack_names:
         new_pack_dict[pack_name] = retime_package(gwf, pack_name, gwf_new, convert_df=new_sp_df)
     # return results
-    return sim_new, new_pack_dict
+    return sim_new
 
 # functions within create_scenario_from_average_years
 def get_scenario_sp_lut(scenario_years_and_weights, sp_df):
