@@ -1,5 +1,6 @@
 # IMPORT
 import os
+from math import gcd
 import numpy as np 
 import pandas as pd
 import flopy
