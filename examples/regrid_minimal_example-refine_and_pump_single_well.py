@@ -22,15 +22,15 @@ pump_rate = -2000
 refine_level = 6 
 
 # BODY
-# loop over a bunch of refinement levels
+# call function
 sim_new, grid_relate, well_cellid  = refine_and_add_wel(
-    sim_ws_base, 
-    well_xy, 
-    well_layer,
-    refine_level, 
-    pump_rate, 
-    sim_ws_new=sim_ws_new,
-    model_name=model_name
+    sim_ws_base, # existing simulation directory
+    well_xy, # x,y coordinates of well
+    well_layer, # layer of well (only 1)
+    refine_level, # quadtree refinement level (number of time to divide cell in 4)
+    pump_rate, # constant wel q
+    sim_ws_new=sim_ws_new, # new simulation directory
+    model_name=model_name # model name (not necessary if only one model in sim)
 )
 
 
