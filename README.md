@@ -10,7 +10,7 @@ Building model scenarios or editing the grid of a MODFLOW 6 model can be a subst
 ## Examples
 See the notebooks in the examples directory to see the intended use of mfmodify.
 
-### Modules
+## Modules
 - **scenario**: 
     - Quickly build scenarios for existing MODFLOW models with transient historic periods. 
     - Extract and reassemble stress period data for specified years into a new transient period.
