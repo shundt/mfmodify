@@ -32,6 +32,7 @@ my own classes, so this library does not contain any.
 See the notebooks in the examples directory to see the intended use of mfmodify.
 
 Snippet from examples/regrid_example-compare_drawdown_at_different_refinements.ipynb:
+
 <img src="examples/images/code_snippet.png" alt="code snippet" width="75%">
 ![Example 1](examples/images/pump_head_refine_00.png)
 ![Example 2](examples/images/pump_head_refine_03.png)
