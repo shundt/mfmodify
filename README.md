@@ -30,7 +30,7 @@ my own classes, so this library does not contain any.
 
 ## Examples
 See the notebooks in the examples directory to see the intended use of mfmodify.
-
+![Snippet 1](examples/images/code_snippet.png)
 ![Example 1](examples/images/pump_head_refine_00.png)
 ![Example 2](examples/images/pump_head_refine_03.png)
 ![Example 3](examples/images/pump_head_refine_06.png)
