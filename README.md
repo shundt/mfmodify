@@ -7,10 +7,7 @@ the tools may have more general application.
 
 Building model scenarios or editing the grid of a MODFLOW 6 model can be a substantial undertaking. This library aims to leverage the information from a model's history-matching period - reusing MODFLOW input files as much as possible.
 
-## Examples
-See the notebooks in the examples directory to see the intended use of mfmodify.
-
-## Modules
+### Modules
 - **scenario**: 
     - Quickly build scenarios for existing MODFLOW models with transient historic periods. 
     - Extract and reassemble stress period data for specified years into a new transient period.
@@ -29,3 +26,10 @@ See the notebooks in the examples directory to see the intended use of mfmodify.
 'mfmodify' makes use of the flopy library but does not extend it's
 functionality. I have decided I'm not a good enough programmer to create
 my own classes, so this library does not contain any.
+
+## Examples
+See the notebooks in the examples directory to see the intended use of mfmodify.
+
+![Example 1](examples/images/pump_head_refine_00.png)
+![Example 2](examples/images/pump_head_refine_03.png)
+![Example 3](examples/images/pump_head_refine_06.png)
