@@ -7,6 +7,9 @@ the tools may have more general application.
 
 Building model scenarios or editing the grid of a MODFLOW 6 model can be a substantial undertaking. This library aims to leverage the information from a model's history-matching period - reusing MODFLOW input files as much as possible.
 
+## Examples
+See the notebooks in the examples directory to see the intended use of mfmodify.
+
 ### Modules
 - **scenario**: 
     - Quickly build scenarios for existing MODFLOW models with transient historic periods. 
@@ -26,6 +29,3 @@ Building model scenarios or editing the grid of a MODFLOW 6 model can be a subst
 'mfmodify' makes use of the flopy library but does not extend it's
 functionality. I have decided I'm not a good enough programmer to create
 my own classes, so this library does not contain any.
-
-## Examples
-See the notebooks in the examples directory to see the intended use of mfmodify.
