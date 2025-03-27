@@ -287,3 +287,60 @@ def get_idomain_df(gwf):
             .assign(column = indices_flat[2])
         )
     return idomain_df
+
+def pak_sp_prop_to_array(pak, prop, grid_relate, sp=0):
+    prop_ra = pak.stress_period_data.data[sp]
+    prop_df = (
+        pd
+        .DataFrame(prop_ra)
+        .loc[:, ['cellid', prop]]
+        .groupby('cellid')
+        .mean()
+    )
+    # figure out grid type
+    if isinstance(prop_df.index[0], int): # unstructured
+        # unstructured
+        pass
+    elif isinstance(prop_df.index[0], tuple): 
+        if len(prop_df.index[0]) == 3: # structured
+            prop_all_cells = (
+                prop_df
+                .reindex(grid_relate.index)
+                .assign(layer = lambda x: [i[0] for i in x.index])
+                .assign(row = lambda x: [i[1] for i in x.index])
+                .assign(column = lambda x: [i[2] for i in x.index])
+            )
+            rows = prop_all_cells.row.unique()
+            columns = prop_all_cells.column.unique()
+            array2d_list = []
+            for layer in prop_all_cells.layer.unique():
+                array2d = (
+                    prop_all_cells
+                    .query(f'layer == {layer}')
+                    .pivot_table(index='row', columns='column', values=prop)
+                    .reindex(index=rows, columns=columns)
+                )
+                if len(array2d) == 0:
+                    array2d = np.empty((prop_all_cells.row.max()+1, prop_all_cells.column.max()+1))
+                array2d_list.append(array2d)
+            array_final = np.stack(array2d_list, axis=0)
+        elif len(prop_df.index[0]) == 2: # vertex grid
+            prop_all_cells = (
+                prop_df
+                .reindex(grid_relate.cellid_disv)
+                .assign(layer = lambda x: [i[0] for i in x.index])
+                .assign(cell2d = lambda x: [i[1] for i in x.index])
+            )
+            cell2ds = prop_all_cells.cell2d.unique()
+            array1d_list = []
+            for layer in prop_all_cells.layer.unique():
+                array1d = (
+                    prop_all_cells
+                    .query(f'layer == {layer}')
+                    .set_index('cell2d')
+                    .cond
+                    .reindex(cell2ds)
+                )
+                array1d_list.append(array1d)
+            array_final = np.stack(array1d_list, axis=0)
+    return array_final

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import flopy
 from flopy.utils.postprocessing import get_water_table
+from flopy.mf6.utils.output_util import HeadFile
 from .utils import (
     lst_df_from_gwf_long,
     get_final_total_lst
@@ -57,7 +58,7 @@ from .utils import (
 #         fig.suptitle(plot_comp, fontsize=16)
 #         fig.tight_layout()
 
-def plot_compare_obs_sim(sim_path0, sim_path1, modelname=None, names=['sim0', 'sim1']):
+def plot_compare_obs_sim(sim_path0, sim_path1, modelname=None, names=['sim0', 'sim1'], **kwargs):
     sim0 = flopy.mf6.MFSimulation.load(sim_ws=sim_path0, verbosity_level=0)
     # budget obs files
     if modelname is None:
@@ -98,9 +99,10 @@ def plot_compare_obs_sim(sim_path0, sim_path1, modelname=None, names=['sim0', 's
         for ibound, idf in ipack_df.groupby('bound'):
             ax = axes[i]
             idf_piv = idf.pivot(index='time', columns='version', values='boundobs')
-            idf_piv.plot(ax=ax, title=ibound, linewidth=1)
+            idf_piv.plot(ax=ax, title=ibound, **kwargs)
             i += 1
         fig.tight_layout()
+    return fig
 
 
 def make_xs_line_along_dis_grid(gwf_dis, xy, line_len, along='row'):
@@ -209,9 +211,9 @@ def make_xs_line_along_dis_grid(gwf_dis, xy, line_len, along='row'):
 #     fig.tight_layout()
 #     return fig
 
-def plot_interpolated_ws(gwf, xs_line, ax, color='black', label=''):
+def plot_interpolated_ws(gwf, xs_line, ax, color='black', label='', iper=-1):
     # get data
-    kstpkper = gwf.output.head().get_kstpkper()[-1]
+    kstpkper = gwf.output.head().get_kstpkper()[iper]
     # get heads
     hds = gwf.output.head().get_data(kstpkper=kstpkper)
     # get water table at final step
@@ -235,6 +237,48 @@ def plot_interpolated_ws(gwf, xs_line, ax, color='black', label=''):
         int_surf_ys.append(ys.mean())
     # plot interpolated surface
     int_surf = ax.plot(int_surf_xs, int_surf_ys, color=color, lw=1, label=label)
+    return int_surf
+
+def plot_interpolated_heads(gwf, xs_line, ax, layer=0, grid=True, idx=-1, **kwargs):
+    # get head file path
+    sim_ws = gwf.simulation.sim_path
+    hd_name = gwf.oc.head_filerecord.get_data()[0][0]
+    hd_file = os.path.join(sim_ws, hd_name)
+    # get heads
+    lay_hds = (
+        HeadFile(hd_file, precision='double')
+        .get_data(idx=idx)[layer, :, :]
+    )
+    # get cross-section plotter
+    xs = flopy.plot.PlotCrossSection(
+        model=gwf,
+        line={'line': xs_line},
+        ax=ax,
+        geographic_coords=True
+    )
+    # plot grid
+    if grid:
+        lc = xs.plot_grid(linewidth=0.5, alpha=0.5)
+    # plot heads
+    surf = xs.plot_surface(lay_hds, masked_values=[1e30], color="black", lw=0.0)
+    # get centers of lines for interpolated surface plot
+    int_surf_xs = []
+    int_surf_ys = []
+    for lines in surf:
+        line = lines[0]
+        xs, ys = line.get_data()
+        int_surf_xs.append(xs.mean())
+        int_surf_ys.append(ys.mean())
+    # make sure they are sorted by x value
+    xs = np.array(int_surf_xs)
+    ys = np.array(int_surf_ys)
+    # Get the indices that would sort the x array
+    sorted_indices = np.argsort(xs)
+    # Sort x and reorder y based on the sorted indices
+    sorted_x = xs[sorted_indices]
+    sorted_y = ys[sorted_indices]
+    # plot interpolated surface
+    int_surf = ax.plot(sorted_x, sorted_y, **kwargs)
     return int_surf
 
 def plot_compare_final_vols(gwf0, gwf1, names=['gwf1', 'gwf2']):
@@ -272,6 +316,15 @@ def plot_compare_final_vols(gwf0, gwf1, names=['gwf1', 'gwf2']):
     ax_out.set_ylabel('total volume')
     ax_in.set_title('IN')
     ax_out.set_title('OUT')
-    fig.suptitle('Comparison of listing final final cumulative volumes', fontsize=15)
+    fig.suptitle('Comparison of listing final cumulative volumes', fontsize=15)
     fig.tight_layout()
     return fig
+
+def remove_axes(ax, x=True, y=True):
+    if x:
+        ax.xaxis.set_ticks([])
+        ax.set_xlabel('')
+    if y:
+        ax.yaxis.set_ticks([])
+        ax.set_ylabel('')
+    return ax
