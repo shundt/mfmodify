@@ -376,25 +376,29 @@ def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props, sim_ws
         )
     return sim_new
 
-def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_level,
+def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels,
     exe_name='gridgen_x64.exe', layers=None, tempdir='temp'):
-    # make sure all geometries are of the same type
-    geom_types = refine_gdf.geometry.type.unique()
-    if len(geom_types) == 1:
-        geom_type = geom_types[0].lower().replace('string', '')
-    else:
-        raise ValueError('Refinement features must have 1 and only 1 geometry type')
+    # add type column 
+    refine_gdf = refine_gdf.assign(gtype = lambda x: 
+            [typ.lower().replace('string', '') for typ in x.geometry.type])
     # make a gridgen object from original model
     gridgen = Gridgen(modelgrid_orig, model_ws=tempdir, exe_name='gridgen_x64.exe')
     # # add refinement features
     if layers is None:
-        layers = list(range(modelgrid_orig.nlay))
-    gridgen.add_refinement_features(
-        refine_gdf.geometry.to_list(),
-        geom_type,
-        refine_level,
-        layers
-    )
+        layers = [list(range(modelgrid_orig.nlay))]*(refine_gdf.shape[0])
+    if isinstance(refine_levels, int):
+        refine_levels = [refine_levels] * (refine_gdf.shape[0])
+    for i, irefine_level in enumerate(refine_levels):
+        igdf = refine_gdf.iloc[i, :]
+        igtype = igdf.gtype
+        igeom = [igdf.geometry]
+        ilayers = layers[i]
+        gridgen.add_refinement_features(
+            igeom,
+            igtype,
+            irefine_level,
+            ilayers
+        )
     gridgen.build()
     return gridgen
 
@@ -436,7 +440,10 @@ def gridgen_intersect_gdf(gridgen, gdf):
         # get type
         geom_type = geom.geom_type.lower().replace('string', '')
         # get xy coords
-        xys = list([list(geom.coords)])
+        if geom_type == 'polygon':
+            xys = list([list([list(geom.exterior.coords)])])
+        else:
+            xys = list([list(geom.coords)])
         intersect_prop_list = []
         for layer in range(gridgen.get_nlay()):
             # intersect
@@ -446,7 +453,7 @@ def gridgen_intersect_gdf(gridgen, gdf):
         intersect_dict[id] = pd.concat(intersect_prop_list)
     return intersect_dict
 
-def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None, 
+def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None, 
     model_name=None, sim_ws_new=None):
     # get gwf model object
     if model_name is None:
@@ -463,7 +470,7 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None,
     if n_ids != refine_gdf.shape[0]:
         print('Unnamed refinement features: all features being given generic "id" names')
         refine_gdf['id'] = [f'feature{i}' for i in range(refine_gdf.shape[0])]
-    gridgen = grid_to_quadtree(modelgrid_orig, refine_gdf, refine_level, 
+    gridgen = grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels, 
         exe_name='gridgen_x64.exe', layers=layers)
     # get grid relate table
     grid_relate = make_grid_relate_table(gridgen)
@@ -495,19 +502,33 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_level, layers=None,
         sim_orig, model_name, grid_relate, disv_props, sim_ws_new)
     return sim_new, grid_relate, feature_locs
 
-def refine_and_add_wel(sim_ws, well_xy, well_layer, refine_level, pump_rate,
-    sim_ws_new=None, model_name=None, silent=True):
+def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate,
+    refine_shapes=None, refine_shape_levels=[], sim_ws_new=None, model_name=None,
+    silent=True):
     # get original simulation
     sim_orig = flopy.mf6.MFSimulation.load(sim_ws=sim_ws, verbosity_level=0)
     # make a refinement feature
     # well_xy = well_xyz[:2]
-    refine_gdf = gpd.GeoDataFrame({
-        'id': ['pumping_well'], 'geometry': [shapely.Point(well_xy)]})
+    well_pt = shapely.Point(well_xy)
+    if refine_shapes is not None:
+        if isinstance(refine_shapes, list):
+            ids = ['pumping_well'] + [f'refine_feat{i+1}' for i in range(len(refine_shapes))]
+            geoms = [well_pt] + refine_shapes
+        else:
+            ids = ['pumping_well', 'refine_feat']
+            geoms = [well_pt, refine_shapes]
+        refine_gdf = gpd.GeoDataFrame({'id': ids, 'geometry': geoms})
+    elif isinstance(refine_shapes, list):
+        refine_gdf = gpd.GeoDataFrame({
+            'id': ['pumping_well'], 'geometry': [shapely.Point(well_xy)]})
+    if (refine_shapes is not None) and (len(refine_shape_levels)==0):
+        refine_shape_levels = [well_refine_level] * refine_shapes.shape[0]
+    refine_levels = [well_refine_level] + refine_shape_levels
     # make a quadtree refined version of the model
     sim_new, grid_relate, _ = quadtree_refine_dis_gwf(
         sim_orig, 
         refine_gdf, 
-        refine_level, 
+        refine_levels,
         layers=None, 
         model_name=model_name, 
         sim_ws_new=sim_ws_new
@@ -520,7 +541,6 @@ def refine_and_add_wel(sim_ws, well_xy, well_layer, refine_level, pump_rate,
         gwf_new = sim_new.get_model(model_name)
     # add a wel object
     # get cellid
-    # well_cellid = gwf_new.modelgrid.intersect(well_xyz[0], well_xyz[1], well_xyz[2])
     well_cellid = (
         well_layer,
         gwf_new.modelgrid.intersect(well_xy[0], well_xy[1])

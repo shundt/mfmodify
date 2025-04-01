@@ -12,8 +12,8 @@ import os
 from mfmodify import refine_and_add_wel
 
 # INPUT
-sim_ws_base = os.path.join('regrid_tests', 'tvgwfm-average_scenario')
-sim_ws_new = os.path.join('regrid_tests', 'tvgwfm-average_scenario-wel_refined_6x')
+sim_ws_base = os.path.join('regrid_tests', 'tvgwfm', 'average_scenario')
+sim_ws_new = os.path.join('regrid_tests', 'tvgwfm', 'average_scenario-wel_refined_6x')
 model_name = 'mf6-tv_hist'
 # pumping well
 well_xy = (2265074, 1392505)
