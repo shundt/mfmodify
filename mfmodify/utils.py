@@ -267,15 +267,15 @@ def get_idomain_df(gwf):
     idomain_flat = idomain.ravel()
     indices_flat_npint = [index.ravel() for index in np.indices(idomain.shape)]
     indices_flat = [getattr(x, 'tolist', lambda: x)() for x in indices_flat_npint]
-    # get cellids and nodeids
+    # get cellids
     cellids = list(zip(*indices_flat))
-    nodeids = grid.get_node(cellids)
-    # make a dataframe
-    idomain_df = pd.DataFrame({
-        'nodeid': nodeids,
-        'cellid': cellids, 
-        'idomain': idomain_flat,
-    })
+    # make a dataframe and add nodeid
+    idomain_df = (
+        pd
+        .DataFrame({'cellid': cellids, 'idomain': idomain_flat}) 
+        .sort_values('cellid')
+        .assign(nodeid = lambda x: range(x.shape[0]))
+    )
     if len(indices_flat) > 1:
         idomain_df = idomain_df.assign(layer = indices_flat[0])
     if len(indices_flat) == 2:
