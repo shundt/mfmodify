@@ -28,6 +28,14 @@ Building model scenarios or editing the grid of a MODFLOW 6 model can be a subst
 functionality. I have decided I'm not a good enough programmer to create
 my own classes, so this library does not contain any.
 
+## Installation
+You can install `mfmodify` directly from the GitHub repository using `pip`:
+
+### Using SSH:
+pip install git+ssh://git@github.com/shundt/mfmodify.git
+### Using HTTPS:
+pip install git+https://github.com/shundt/mfmodify.git
+
 ## Examples
 See the notebooks in the examples directory to see the intended use of mfmodify.
 
