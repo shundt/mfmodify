@@ -9,6 +9,31 @@ import flopy
 
 # FUNCTIONS
 def round_date(ts, frequency='M'):
+    """
+    Round a timestamp to the nearest specified frequency.
+
+    This function rounds a given timestamp to the nearest month, year, or other 
+    specified time frequency. For monthly and yearly frequencies, the midpoint 
+    between the current and next period is used to determine rounding. For other 
+    frequencies, the timestamp is rounded directly.
+
+    Parameters:
+    ts (pd.Timestamp): The timestamp to be rounded.
+    frequency (str): The frequency to round to. Supported values are:
+        - 'M': Month
+        - 'Y': Year
+        - 'D': Day
+        - 'h': Hour
+        - 'min': Minute
+        - 's': Second
+        - 'ms': Millisecond
+
+    Returns:
+    pd.Timestamp: The rounded timestamp.
+
+    Raises:
+    ValueError: If the frequency is not one of the supported values.
+    """
     if frequency in ['M', 'Y']:
         if frequency == 'M':
             offsetter = pd.offsets.MonthBegin
@@ -28,6 +53,40 @@ def round_date(ts, frequency='M'):
     return rounded
 
 def get_sp_data(sim, snap_dates='M'):
+    """
+    Generate a stress period data table for a simulation.
+
+    This function extracts stress period data from a MODFLOW 6 simulation and 
+    organizes it into a DataFrame. It includes information such as start and 
+    end times, stress period lengths, and optionally rounded or snapped dates.
+
+    Parameters:
+    sim (flopy.mf6.MFSimulation): The MODFLOW 6 simulation object.
+    snap_dates (str, optional): The frequency to which dates should be rounded 
+        or snapped. Supported values are:
+        - 'M': Month
+        - 'Y': Year
+        - 'D': Day
+        - 'h': Hour
+        - 'min': Minute
+        - 's': Second
+        - 'ms': Millisecond
+        Defaults to 'M' (Month).
+
+    Returns:
+    pd.DataFrame: A DataFrame containing stress period data with the following columns:
+        - 'sp': Stress period index.
+        - 'start_date': The start date of the stress period.
+        - 'snap_date': The snapped or rounded date.
+        - 'year': The year of the snapped date.
+        - 'month': The month of the snapped date.
+        - 'perlen': The length of the stress period.
+        - 'nstp': The number of time steps in the stress period.
+        - 'tsmult': The time step multiplier.
+        - 'endtime': The cumulative end time of the stress period.
+        - 'starttime': The cumulative start time of the stress period.
+        - 'start_date_time': The exact start date and time of the stress period.
+    """
     tdis = sim.get_package('tdis')
     start_date_time = pd.to_datetime(tdis.start_date_time.data)
     sp_df = (
@@ -48,6 +107,22 @@ def get_sp_data(sim, snap_dates='M'):
     return sp_df
 
 def get_parameter_set(pack, rem_att_set=set([])):
+    """
+    Retrieve a set of parameters for instantiating a package.
+
+    This function identifies the attributes of a package that can be used as 
+    parameters for instantiating a new instance of the same package. It excludes 
+    attributes specified in the `rem_att_set`.
+
+    Parameters:
+    pack (object): The package object from which parameters are extracted.
+    rem_att_set (set, optional): A set of attribute names to exclude from the 
+        parameter set. Defaults to an empty set.
+
+    Returns:
+    set: A set of attribute names that can be used as parameters for instantiating 
+        the package.
+    """
     # get list of attributes
     pack_att_set = set(vars(pack).keys())
     # Get a list of parameters for instantiating the class
@@ -59,6 +134,20 @@ def get_parameter_set(pack, rem_att_set=set([])):
     return attribute_trans_list
 
 def param_dict_from_list(pack, param_list):
+    """
+    Create a dictionary of parameters from a list of attributes.
+
+    This function extracts the values of specified attributes from a package 
+    object and organizes them into a dictionary. The dictionary can be used 
+    to instantiate a new instance of the package.
+
+    Parameters:
+    pack (object): The package object from which attributes are extracted.
+    param_list (list): A list of attribute names to extract from the package.
+
+    Returns:
+    dict: A dictionary containing the extracted attributes and their values.
+    """
     pack_param_dict = {}
     for att in param_list:
         att_val = getattr(pack, att)
@@ -73,6 +162,23 @@ def param_dict_from_list(pack, param_list):
     return pack_param_dict
 
 def get_objects_from_pack(pack, attribute_name):
+    """
+    Retrieve a list of objects from a package attribute.
+
+    This function extracts objects from a specified attribute of a package. 
+    It iterates through the attribute, collecting objects until a `ValueError` 
+    is encountered, indicating the end of the collection.
+
+    This function is used by `get_ts_objects` and `get_obs_objects` to 
+    retrieve time series (`ts`) and observation (`obs`) objects, respectively.
+
+    Parameters:
+    pack (object): The package object from which the attribute is accessed.
+    attribute_name (str): The name of the attribute to retrieve objects from.
+
+    Returns:
+    list: A list of objects retrieved from the specified attribute.
+    """
     object_list = []
     for i in range(1000):
         try:
@@ -90,6 +196,19 @@ def get_obs_objects(pack):
     return get_objects_from_pack(pack, 'obs')
 
 def copy_param_dict(pack):
+    """
+    Create a dictionary of parameters for copying a package.
+
+    This function extracts the parameters of a package object and organizes 
+    them into a dictionary. The dictionary can be used to instantiate a new 
+    instance of the package with the same parameters.
+
+    Parameters:
+    pack (object): The package object from which parameters are extracted.
+
+    Returns:
+    dict: A dictionary containing the extracted parameters and their values.
+    """
     # get list of attributes to use as parameters in instantiating object
     rem_att_set = set(['loading_package'])
     param_set = get_parameter_set(pack, rem_att_set=rem_att_set)
@@ -103,6 +222,26 @@ def copy_param_dict(pack):
     return pack_param_dict
 
 def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
+    """
+    Copy a package from one simulation or model to another.
+
+    This function copies a package from an original simulation or groundwater 
+    flow model (GWF) to a new simulation or model. It allows for manual 
+    parameter overrides during the copying process.
+
+    Parameters:
+    sim_or_gwf_orig (flopy.mf6.MFSimulation or flopy.mf6.ModflowGwf): The original 
+        simulation or GWF model containing the package to be copied.
+    pack_name (str): The name of the package to be copied.
+    sim_or_gwf_new (flopy.mf6.MFSimulation or flopy.mf6.ModflowGwf): The new 
+        simulation or GWF model to which the package will be added.
+    manual_params (dict, optional): A dictionary of parameters to override or 
+        add to the copied package. Defaults to an empty dictionary.
+
+    Returns:
+    flopy.mf6.ModflowGwfPackage: The copied package associated with the new 
+        simulation or model.
+    """
     pack = sim_or_gwf_orig.get_package(pack_name)
     # return pack
     pack_class = pack.__class__
@@ -116,6 +255,22 @@ def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
     return pack_new
 
 def get_gwf_package_df(gwf):
+    """
+    Generate a DataFrame of package information for a GWF model.
+
+    This function extracts information about the packages in a groundwater flow 
+    (GWF) model and organizes it into a DataFrame. The DataFrame includes details 
+    such as package types, names, and formatted package identifiers.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing package information with the following columns:
+        - 'ftype': The package type (e.g., 'dis', 'npf').
+        - 'pname': The package name.
+        - 'pakname': A formatted package identifier combining the type and number.
+    """
     gwf_package_df = (
         pd.DataFrame(gwf.name_file.packages.array)
         .assign(ftype = lambda x: [ft[:-1].lower() for ft in x.ftype])
@@ -129,6 +284,25 @@ def get_gwf_package_df(gwf):
     return gwf_package_df
 
 def lst_df_from_gwf(gwf):
+    """
+    Generate a DataFrame from the listing file of a GWF model.
+
+    This function extracts data from the listing file of a groundwater flow 
+    (GWF) model and organizes it into a DataFrame. The DataFrame includes 
+    information about stress periods, recharge, discharge, and storage changes.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing listing file data with the following columns:
+        - 'sp': Stress period index.
+        - 'year': The year of the stress period.
+        - 'month': The month of the stress period.
+        - 'total_recharge': Total recharge during the stress period.
+        - 'total_discharge': Total discharge during the stress period.
+        - 'net_storage': Net storage change during the stress period.
+    """
     # get listing file
     lst = gwf.output.list()
     # get timing information
@@ -150,6 +324,22 @@ def lst_df_from_gwf(gwf):
     return lst_df
 
 def annual_summary_from_gwf(gwf):
+    """
+    Generate an annual summary of recharge, discharge, and storage changes for a GWF model.
+
+    This function aggregates data from the listing file of a groundwater flow 
+    (GWF) model to produce an annual summary. It calculates total recharge, 
+    total discharge, and net storage changes for each complete year.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the annual summary with the following columns:
+        - 'total_recharge': Total recharge during the year.
+        - 'total_discharge': Total discharge during the year.
+        - 'net_storage': Net storage change during the year.
+    """
     lst_df = lst_df_from_gwf(gwf)
     # annual summary
     ann_list_df = (
@@ -163,6 +353,27 @@ def annual_summary_from_gwf(gwf):
     return ann_list_df
 
 def lst_df_from_gwf_long(gwf):
+    """
+    Generate a long-format DataFrame from the listing file of a GWF model.
+
+    This function converts the listing file data of a groundwater flow (GWF) model 
+    into a long-format DataFrame. It includes information about stress periods, 
+    recharge, discharge, and storage changes, along with package and component details.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A long-format DataFrame containing listing file data with the following columns:
+        - 'sp': Stress period index.
+        - 'year': The year of the stress period.
+        - 'month': The month of the stress period.
+        - 'pak': The package name.
+        - 'rate': The rate associated with the package.
+        - 'pname': The formatted package name.
+        - 'direction': The flow direction (e.g., 'in', 'out').
+        - 'bcompname': The combined component name (e.g., 'package-direction').
+    """
     # get gwf package info
     gwf_package_df = get_gwf_package_df(gwf)
     pakname_lut = gwf_package_df.set_index('pakname').pname
@@ -197,6 +408,23 @@ def lst_df_from_gwf_long(gwf):
     return lst_df_long
 
 def get_final_total_lst(gwf):
+    """
+    Generate a summary of final total volumes from the listing file of a GWF model.
+
+    This function extracts cumulative volume data from the listing file of a 
+    groundwater flow (GWF) model and organizes it into a summary DataFrame. 
+    It includes information about the total volume for each component, grouped 
+    by flow direction and component type.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the final total volumes with the following columns:
+        - 'btype': The component type (e.g., 'wel', 'riv').
+        - 'direction': The flow direction (e.g., 'in', 'out').
+        - 'total_volume': The total volume for each component and direction.
+    """
     # get the simulation
     sim = gwf.simulation
     # get the list
@@ -234,6 +462,24 @@ def copy_sim(sim, sim_ws):
     return sim_new
 
 def add_new_hdobs(gwf, hdobs_continuous, digits=5):
+    """
+    Add or update a head observations (hdobs) package in a GWF model.
+
+    This function adds a new head observations (hdobs) package to a groundwater 
+    flow (GWF) model or updates an existing one (since mf6 only allows one). 
+    It allows for the inclusion of new continuous observation data and adjusts 
+    the package parameters accordingly.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+    hdobs_continuous (dict): A dictionary containing continuous observation data 
+        to be added or updated in the hdobs package.
+    digits (int, optional): The number of digits to use for formatting observation 
+        output. Defaults to 5.
+
+    Returns:
+    flopy.mf6.modflow.mfutlobs.ModflowUtlobs: The updated or newly created hdobs package.
+    """
     if gwf.get_package('hdobs') is None:
         model_name = gwf.name
         hdobs = flopy.mf6.modflow.mfutlobs.ModflowUtlobs(
@@ -259,6 +505,27 @@ def add_new_hdobs(gwf, hdobs_continuous, digits=5):
     return hdobs
 
 def get_idomain_df(gwf):
+    """
+    Generate a DataFrame representing the idomain array of a GWF model.
+
+    This function extracts the idomain array from a groundwater flow (GWF) model 
+    and organizes it into a DataFrame. The DataFrame includes cell IDs, idomain 
+    values, and additional spatial information such as layer, row, and column 
+    indices, depending on the grid type.
+
+    Parameters:
+    gwf (flopy.mf6.ModflowGwf): The GWF model object.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the idomain data with the following columns:
+        - 'cellid': The cell ID.
+        - 'idomain': The idomain value for the cell.
+        - 'nodeid': The node ID for the cell.
+        - 'layer' (optional): The layer index (for 3D grids).
+        - 'row' (optional): The row index (for structured grids).
+        - 'column' (optional): The column index (for structured grids).
+        - 'icell2d' (optional): The cell2d index (for vertex grids).
+    """
     # get dis and modelgrid
     dis = gwf.get_package('dis')
     grid = gwf.modelgrid
@@ -289,6 +556,22 @@ def get_idomain_df(gwf):
     return idomain_df
 
 def pak_sp_prop_to_array(pak, prop, grid_relate, sp=0):
+    """
+    Convert a package stress period property to an array.
+
+    This function extracts a specified property from a package's stress period 
+    data and converts it into an array format. The function supports structured, 
+    unstructured, and vertex grids.
+
+    Parameters:
+    pak (flopy.mf6.ModflowGwfPackage): The package object containing stress period data.
+    prop (str): The property name to extract from the stress period data.
+    grid_relate (pd.DataFrame): A DataFrame relating grid cell IDs to the model grid.
+    sp (int, optional): The stress period index to extract data for. Defaults to 0.
+
+    Returns:
+    np.ndarray: An array representing the specified property for the given stress period.
+    """
     prop_ra = pak.stress_period_data.data[sp]
     prop_df = (
         pd

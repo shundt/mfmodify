@@ -15,7 +15,6 @@ from .utils import (
 )
 
 # TODO: Add other boundary types (now just drn, ghb, riv, wel)
-# TODO: Make the new time start at 2100
 
 # FUNCTIONS
 # functions within create_scenario_from_years
@@ -196,7 +195,7 @@ def closest_value_below(value, list):
     return closest_value
 
 def scenario_from_repeat_years(sim_ws, scenario_years, ic_mon_year, new_sim_ws='dummy', 
-    start_date_time='2050-01-01t00:00:00'):
+    start_date_time='2100-01-01t00:00:00'):
     """
     Create a simulation scenario by repeating specified years.
 
