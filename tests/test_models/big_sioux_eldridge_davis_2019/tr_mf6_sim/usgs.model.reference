@@ -1,0 +1,9 @@
+xul 2211800.000000             # upper left x-coordinate
+yul 15931600.000000            # upper left y-coordinate
+rotation 0                     # model grid rotation (degrees)
+length_units feet              # model length units
+time_units days                # model time units
+start_date 1949-12-31          # state date of the model
+start_time 00:00:00            # start time of the model
+model modflow-6                # MODFLOW model type
++proj=utm +zone=14 +ellps=GRS80 +datum=NAD83 +to_meter=0.3048006096012192 +no_defs +x_0= 1640416.666666667 +y_0= 0.0 +lon_0=-99.0 +lat_0=0.0  #proj4 string

@@ -1,0 +1,9 @@
+xul 355046.48          # upper left x-coordinate
+yul 3777032.06         # upper left y-coordinate
+rotation 0.0           # model grid rotation (degrees)
+length_units feet      # model length units 
+time_units days        # model time units
+start_date 1/1/1971    # state date of the model
+start_time 00:00:00    # start time of the model
+model modflow-6-LACP   # MODFLOW model type
+epsg 26911             # epsg code 

@@ -1,0 +1,67 @@
+# IMS6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:37.
+
+BEGIN Options
+  PRINT_OPTION  SUMMARY
+  COMPLEXITY  COMPLEX
+  CSV_OUTPUT FILEOUT ..\..\output\output.tr_mf6_sim\output__sfbsa_tr6.solver.csv
+END Options
+
+BEGIN Nonlinear
+ # real value, head closure criterion in model units of length
+  OUTER_HCLOSE   0.01
+ # integer value, max number of outer (nonlinear) iterations
+  OUTER_MAXIMUM  500
+ # optional keyword, defines the nonlinear under-relaxation schemes (only use one)
+  # UNDER_RELAXATION  NONE			# under-relaxation is not used
+  # UNDER_RELAXATION  SIMPLE		# simple scheme is used
+  # UNDER_RELAXATION  COOLEY		# Cooley scheme is used
+  UNDER_RELAXATION  DBD				# delta-bar-delta is used
+ # real value, learning rate for DBD algorithm (0-1.0)
+  UNDER_RELAXATION_THETA   0.7
+ # real value, increment for the learning rate (0-1.0)
+  UNDER_RELAXATION_KAPPA   0.1
+ # real value, history or memory term factor of the DBD algorithm (0-1.0)
+  UNDER_RELAXATION_GAMMA    0.2
+ # real value, the fraction of past history changes that is added as a momentum term to the step change for a nonlinear iteration (0-1.0)
+  UNDER_RELAXATION_MOMENTUM   0.001
+ # integer value, maximum number of backtracking iterations allowed for residual reduction computations
+  BACKTRACKING_NUMBER  5
+ # real value, tolerance for residual change that is allowed for residual reduction computations (>1.0)
+  BACKTRACKING_TOLERANCE    1.1
+ # real value, reduction in step size used for residual reduction computations (0-1.0)
+  BACKTRACKING_REDUCTION_FACTOR   0.2
+ # real value, limit to which the residual is reduced with backtracking (>0)
+  BACKTRACKING_RESIDUAL_LIMIT    100
+END Nonlinear
+
+BEGIN LINEAR
+ # integer value, maximum number of inner (linear) iterations
+  INNER_MAXIMUM  100
+ # real value, head change criterion for convergence of the inner (linear) iterations, in model units of length
+  INNER_HCLOSE   0.001
+ # real value, flow residual tolerance for convergence of the IMS linear solver and specific flow residual criteria used, in model units of l**3/t
+  INNER_RCLOSE   0.1
+ # optional keyword, specific flow residual criterion used
+  # RCLOSE_OPTION  STRICT				# INNER RCLOSE represents a infinity-Norm (absolute convergence criteria) and that the head and flow convergence criteria must be met on the first inner iteration
+  # RCLOSE_OPTION  L2NORM_RCLOSE		# INNER RCLOSE represents a L-2 Norm closure criteria instead of a infinity-Norm (absolute convergence criteria)
+  # RCLOSE_OPTION  RELATIVE_RCLOSE		# a reasonable initial INNER RCLOSE value is 1.0e-4
+ # keyword, linear acceleration method used by the default IMS linear solvers
+  LINEAR_ACCELERATION  BICGSTAB			# preconditioned bi-conjugate gradient stabilized method
+  # LINEAR_ACCELERATION  CG				# preconditioned conjugate gradient method
+ # optional real value, relaxation factor used by the incomplete LU factorization preconditioners (0-1.0)
+  RELAXATION_FACTOR 0.0
+ # optional real value, level of fill for ILU decomposition used in the ILUT and MILUT preconditioners
+  PRECONDITIONER_LEVELS  2
+ # optional real value, drop tolerance used to drop preconditioner terms based on the magnitude of matrix entries in the ILUT and MILUT preconditioners
+  PRECONDITIONER_DROP_TOLERANCE   0.0001
+ # optional integer value, interval used to explicitly recalculate the residual of the flow equation using the solver coefficient matrix, the latest head estimates, and the right hand side
+  NUMBER_ORTHOGONALIZATIONS  0
+ # optional keyword, matrix scaling approach used
+  # SCALING_METHOD  NONE			# no matrix scaling is applied
+  # SCALING_METHOD  DIAGONAL		# symmetric matrix scaling using the POLCG preconditioner scaling method in Hill (1992)
+  # SCALING_METHOD  L2NORM			# symmetric matrix scaling using the L2 norm
+ # optional keyword, matrix reordering approach used
+  REORDERING_METHOD  NONE			# original ordering
+  # REORDERING_METHOD  RCM			# reverse Cuthill McKee ordering
+  # REORDERING_METHOD  MD			# minimum degree ordering
+END LINEAR
