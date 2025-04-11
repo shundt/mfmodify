@@ -1,0 +1,56 @@
+# OC6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:36.
+# output for stress period 1 is steady-state
+# output for stress period 201 is August 1966
+# output for stress period 442 is September 1986
+# output for stress period 809 is March 2017
+# comment out or delete lines 20-53 to generate full model cell-by-cell and heads outputs
+
+BEGIN Options
+  BUDGET FILEOUT  ..\..\output\output.tr_mf6_sim\output__sfbsa_tr6.cbb
+  HEAD FILEOUT    ..\..\output\output.tr_mf6_sim\output__sfbsa_tr6.hds
+  HEAD PRINT_FORMAT  COLUMNS 10  WIDTH 11  DIGITS 4  GENERAL
+END Options
+
+BEGIN PERIOD 1
+  SAVE BUDGET ALL
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 2
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 201
+  SAVE BUDGET ALL
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 202
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 442
+  SAVE BUDGET ALL
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 443
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 808
+  SAVE BUDGET ALL
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD
+
+BEGIN PERIOD 809
+  PRINT BUDGET ALL
+  SAVE HEAD ALL
+END PERIOD

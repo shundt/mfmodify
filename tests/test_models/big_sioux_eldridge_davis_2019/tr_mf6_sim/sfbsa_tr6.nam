@@ -1,0 +1,25 @@
+# Output control file for SFBSA M6 model
+# Model is configured to provide outputs for stress periods 1, 201, 442, and
+# 809 to reduce required computer storage space
+
+BEGIN OPTIONS
+   PRINT_INPUT
+   LIST       ..\..\output\output.tr_mf6_sim\output__sfbsa_tr6.lst
+   NEWTON UNDER_RELAXATION
+END OPTIONS
+
+BEGIN Packages
+  DIS6       ..\external_files\sfbsa.dis
+  IC6        .\sfbsa_tr6.ic
+  NPF6       .\sfbsa_tr6.npf
+  STO6       .\sfbsa_tr6.sto
+  OC6        .\sfbsa_tr6.oc
+  SFR6       .\sfbsa_tr6.sfr    SFR-1
+  WEL6       .\sfbsa_tr6.wel
+  EVT6       .\sfbsa_tr6.evt
+  RCH6       .\sfbsa_tr6.rch
+  RIV6       .\sfbsa_tr6.riv
+  DRN6       .\sfbsa_tr6.drn
+  MVR6       ..\external_files\sfbsa.mvr
+  OBS6       ..\external_files\obs\tr\sfbsa.gwf.head.obs
+END Packages

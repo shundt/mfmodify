@@ -1,0 +1,20 @@
+# NPF6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:36.
+
+BEGIN Options
+  SAVE_FLOWS  ..\..\output\output.tr_mf6_sim\output__sfbsa_tr6.cbb
+END Options
+
+BEGIN GRIDDATA
+  Icelltype LAYERED
+    CONSTANT  1
+    CONSTANT  1
+    CONSTANT  1
+  K  LAYERED
+    OPEN/CLOSE ..\external_files\props\sfss21._kx  FACTOR  1.0  IPRN   -1
+    OPEN/CLOSE ..\external_files\props\sfss22._kx  FACTOR  1.0  IPRN   -1
+    OPEN/CLOSE ..\external_files\props\sfss23._kx  FACTOR  1.0  IPRN   -1
+  K33  LAYERED
+    OPEN/CLOSE ..\external_files\props\sfss21._kz  FACTOR  1.0  IPRN   -1
+    OPEN/CLOSE ..\external_files\props\sfss22._kz  FACTOR  1.0  IPRN   -1
+    OPEN/CLOSE ..\external_files\props\sfss23._kz  FACTOR  1.0  IPRN   -1
+END GRIDDATA

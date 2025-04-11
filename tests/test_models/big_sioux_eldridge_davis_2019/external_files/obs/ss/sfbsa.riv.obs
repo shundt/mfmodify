@@ -1,0 +1,11 @@
+# OBS6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:37.
+BEGIN Options
+  PRINT_INPUT
+  DIGITS  7
+END Options
+
+# Head observations
+BEGIN CONTINUOUS FILEOUT ..\..\output\output.ss_mf6_capture\obs\output__sfbsa_ss6.riv_obs.flux.csv
+  westriv     RIV     westriv
+  eastriv     RIV     eastriv
+END CONTINUOUS
