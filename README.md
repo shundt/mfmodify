@@ -32,9 +32,14 @@ my own classes, so this library does not contain any.
 You can install `mfmodify` directly from the GitHub repository using `pip`:
 
 ### Using SSH:
+```bash
 pip install git+ssh://git@github.com/shundt/mfmodify.git
+```
+
 ### Using HTTPS:
+```bash
 pip install git+https://github.com/shundt/mfmodify.git
+```
 
 ## Examples
 See the notebooks in the examples directory to see the intended use of mfmodify.
