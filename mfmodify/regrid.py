@@ -1,5 +1,6 @@
 # IMPORT
 import shutil
+import os
 import numpy as np
 import pandas as pd
 import shapely
@@ -589,7 +590,7 @@ def gridgen_intersect_gdf(gridgen, gdf):
     return intersect_dict
 
 def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None, 
-    model_name=None, sim_ws_new=None):
+    model_name=None, sim_ws_new=None, tempdir=None):
     """
     Refine a GWF model using a quadtree grid.
 
@@ -632,8 +633,10 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None,
     if n_ids != refine_gdf.shape[0]:
         print('Unnamed refinement features: all features being given generic "id" names')
         refine_gdf['id'] = [f'feature{i}' for i in range(refine_gdf.shape[0])]
+    if tempdir is None:
+        tempdir = 'temp'
     gridgen = grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels, 
-        exe_name='gridgen_x64.exe', layers=layers)
+        exe_name='gridgen_x64.exe', layers=layers, tempdir=tempdir)
     # get grid relate table
     grid_relate = make_grid_relate_table(gridgen)
     # get disv props
@@ -666,7 +669,7 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None,
 
 def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate,
     refine_shapes=None, refine_shape_levels=[], sim_ws_new=None, model_name=None,
-    silent=True):
+    silent=True, tempdir=None):
     """
     Refine a GWF model using a quadtree grid and add a well package.
 
@@ -711,12 +714,14 @@ def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate
             ids = ['pumping_well', 'refine_feat']
             geoms = [well_pt, refine_shapes]
         refine_gdf = gpd.GeoDataFrame({'id': ids, 'geometry': geoms})
-    elif isinstance(refine_shapes, list):
+    else:
         refine_gdf = gpd.GeoDataFrame({
             'id': ['pumping_well'], 'geometry': [shapely.Point(well_xy)]})
     if (refine_shapes is not None) and (len(refine_shape_levels)==0):
         refine_shape_levels = [well_refine_level] * refine_shapes.shape[0]
     refine_levels = [well_refine_level] + refine_shape_levels
+    if tempdir is None:
+        tempdir = os.path.join(sim_ws_new, 'temp')
     # make a quadtree refined version of the model
     sim_new, grid_relate, _ = quadtree_refine_dis_gwf(
         sim_orig, 
@@ -724,7 +729,8 @@ def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate
         refine_levels,
         layers=None, 
         model_name=model_name, 
-        sim_ws_new=sim_ws_new
+        sim_ws_new=sim_ws_new,
+        tempdir=tempdir
     )
     # get gwf model object
     if model_name is None:
