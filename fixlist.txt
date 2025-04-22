@@ -1,4 +1,4 @@
-- refine_and_add_wel: make both refine shapes and refine levels optional arguments
-- refine_and_add_wel: create an optional argument for the tempdir, if equal to (default)
+X refine_and_add_wel: make both refine shapes and refine levels optional arguments
+X refine_and_add_wel: create an optional argument for the tempdir, if equal to (default)
   of none, put it into a temp dir inside the sim_ws_new
-- figure out how to deal with the exe locations!
+X figure out how to deal with the exe locations!

@@ -6,7 +6,6 @@ import os
 # conda environment
 sys.path.insert(0, '..')
 from mfmodify import refine_and_add_wel
-# import mfmodify
 
 # INPUT
 orig_dir_name = 'treasure_valley_hundt_bartolino_2023'

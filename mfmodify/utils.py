@@ -1,4 +1,6 @@
 # IMPORT
+import os
+import platform
 import copy
 import inspect
 import numpy as np
@@ -627,3 +629,31 @@ def pak_sp_prop_to_array(pak, prop, grid_relate, sp=0):
                 array1d_list.append(array1d)
             array_final = np.stack(array1d_list, axis=0)
     return array_final
+
+def find_lib_exe(exe_name):
+    # Get the directory of the current file
+    base_dir = os.path.dirname(__file__)
+    
+    # Determine the OS and set the appropriate subdirectory
+    os_name = platform.system().lower()
+    if os_name == 'linux':
+        os_dir = 'linux'
+        file_extension = ''
+    elif os_name == 'darwin':  # macOS
+        os_dir = 'mac'
+        file_extension = ''
+    elif os_name == 'windows':
+        os_dir = 'windows'
+        # check architecture
+        arch, _ = platform.architecture()
+        if (exe_name in ['gridgen']) and (arch == '64bit'):
+            exe_name = f'{exe_name}_x64'
+        file_extension = '.exe'
+    else:
+        raise Exception("Unsupported operating system")
+    
+    exe_path = os.path.join(base_dir, 'executables', os_dir, exe_name + file_extension)
+
+    # Construct the full path to the executable
+    # return os.path.join(base_dir, 'executables', os_dir, executable_name)
+    return exe_path

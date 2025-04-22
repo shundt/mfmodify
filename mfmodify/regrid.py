@@ -14,7 +14,8 @@ from .utils import (
     get_obs_objects,
     copy_param_dict,
     copy_empty_sim,
-    copy_package
+    copy_package,
+    find_lib_exe
 )
 
 # VARIABLES
@@ -456,8 +457,8 @@ def refine_gwf_dis_to_disv(sim_orig, model_name, grid_relate, disv_props, sim_ws
         )
     return sim_new
 
-def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels,
-    exe_name='gridgen_x64.exe', layers=None, tempdir='temp'):
+def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels, layers=None,
+         tempdir='temp'):
     """
     Generate a quadtree grid from a structured grid using refinement features.
 
@@ -471,7 +472,6 @@ def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels,
         features. Each feature should have a geometry and an associated refinement level.
     refine_levels (int or list of int): The refinement level(s) for each feature in 
         `refine_gdf`. If a single integer is provided, it is applied to all features.
-    exe_name (str, optional): The name of the Gridgen executable. Defaults to 'gridgen_x64.exe'.
     layers (list of list of int, optional): A list specifying which layers to refine 
         for each feature. Defaults to all layers for all features.
     tempdir (str, optional): The temporary directory where Gridgen will perform its 
@@ -483,8 +483,10 @@ def grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels,
     # add type column 
     refine_gdf = refine_gdf.assign(gtype = lambda x: 
             [typ.lower().replace('string', '') for typ in x.geometry.type])
+    # find gridgen exe in mfmodify (no option because it hasn't been updated since 2018)
+    gridgen_exe = find_lib_exe('gridgen')
     # make a gridgen object from original model
-    gridgen = Gridgen(modelgrid_orig, model_ws=tempdir, exe_name='gridgen_x64.exe')
+    gridgen = Gridgen(modelgrid_orig, model_ws=tempdir, exe_name=gridgen_exe)
     # # add refinement features
     if layers is None:
         layers = [list(range(modelgrid_orig.nlay))]*(refine_gdf.shape[0])
@@ -636,7 +638,7 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None,
     if tempdir is None:
         tempdir = 'temp'
     gridgen = grid_to_quadtree(modelgrid_orig, refine_gdf, refine_levels, 
-        exe_name='gridgen_x64.exe', layers=layers, tempdir=tempdir)
+        layers=layers, tempdir=tempdir)
     # get grid relate table
     grid_relate = make_grid_relate_table(gridgen)
     # get disv props
@@ -669,7 +671,7 @@ def quadtree_refine_dis_gwf(sim_orig, refine_gdf, refine_levels, layers=None,
 
 def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate,
     refine_shapes=None, refine_shape_levels=[], sim_ws_new=None, model_name=None,
-    silent=True, tempdir=None):
+    silent=True, tempdir=None, mf6_exe=None):
     """
     Refine a GWF model using a quadtree grid and add a well package.
 
@@ -732,6 +734,11 @@ def refine_and_add_wel(sim_ws, well_xy, well_layer, well_refine_level, pump_rate
         sim_ws_new=sim_ws_new,
         tempdir=tempdir
     )
+    # get exe
+    if mf6_exe is None:
+        mf6_exe = find_lib_exe('mf6')
+    # add an exe_name to simulation
+    sim_new.exe_name = mf6_exe
     # get gwf model object
     if model_name is None:
         gwf_new = sim_new.get_model()
