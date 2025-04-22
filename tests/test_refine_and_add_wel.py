@@ -18,8 +18,12 @@ well_layer = 4
 pump_rate = -2000
 refine_level = 6 
 
-#%%
 # BODY
+# extract original_models.zip if not already done
+from test_utils import extract_if_needed
+extract_if_needed('original_models.zip')
+print('running test...')
+
 # call function
 sim_new, grid_relate, well_cellid  = refine_and_add_wel(
     sim_ws_base, # existing simulation directory
@@ -30,5 +34,3 @@ sim_new, grid_relate, well_cellid  = refine_and_add_wel(
     sim_ws_new=sim_ws_new, # new simulation directory
     # model_name=model_name # model name (not necessary if only one model in sim)
 )
-
-# %%

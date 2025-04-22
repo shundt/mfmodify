@@ -1,6 +1,0 @@
-# IC6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:36.
-
-BEGIN GRIDDATA
-  STRT
-    OPEN/CLOSE ..\external_files\ic\sfbsa_strt.hds  FACTOR    1.100000  (BINARY)  IPRN  -1
-END GRIDDATA
