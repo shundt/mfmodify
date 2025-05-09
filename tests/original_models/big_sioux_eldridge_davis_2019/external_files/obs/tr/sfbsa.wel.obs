@@ -1,0 +1,62 @@
+# OBS6 input file, prepared by MF5to6 on 3/13/2018 at 14:57:37.
+BEGIN Options
+  PRINT_INPUT
+  DIGITS  7
+END Options
+
+# Head observations
+BEGIN CONTINUOUS FILEOUT ..\..\output\output.tr_mf6_sim\obs\output__sfbsa_tr6.wel_obs.discharge.csv
+  SFCwell_03     WEL     SFCwell_03
+  SFCwell_04     WEL     SFCwell_04
+  SFCwell_10     WEL     SFCwell_10
+  SFCwell_11     WEL     SFCwell_11
+  SFCwell_12     WEL     SFCwell_12
+  SFCwell_13     WEL     SFCwell_13
+  SFCwell_14     WEL     SFCwell_14
+  SFCwell_15     WEL     SFCwell_15
+  SFCwell_17     WEL     SFCwell_17
+  SFCwell_18     WEL     SFCwell_18
+  SFCwell_20     WEL     SFCwell_20
+  SFCwell_21     WEL     SFCwell_21
+  SFCwell_23     WEL     SFCwell_23
+  SFCwell_24     WEL     SFCwell_24
+  SFCwell_25     WEL     SFCwell_25
+  SFCwell_26     WEL     SFCwell_26
+  SFCwell_27     WEL     SFCwell_27
+  SFCwell_28     WEL     SFCwell_28
+  SFCwell_29     WEL     SFCwell_29
+  SFCwell_30     WEL     SFCwell_30
+  SFCwell_31     WEL     SFCwell_31
+  SFCwell_32     WEL     SFCwell_32
+  SFCwell_33     WEL     SFCwell_33
+  SFCwell_34     WEL     SFCwell_34
+  SFCwell_36     WEL     SFCwell_36
+  SFCwell_37     WEL     SFCwell_37
+  SFCwell_38     WEL     SFCwell_38
+  SFCwell_39     WEL     SFCwell_39
+  SFCwell_42     WEL     SFCwell_42
+  SFCwell_43     WEL     SFCwell_43
+  SFCwell_44     WEL     SFCwell_44
+  SFCwell_46     WEL     SFCwell_46
+  SFCwell_47     WEL     SFCwell_47
+  SFCwell_53     WEL     SFCwell_53
+  SFCwell_62     WEL     SFCwell_62
+  SFCwell_63     WEL     SFCwell_63
+  SFCwell_69     WEL     SFCwell_69
+  SFCwell_71     WEL     SFCwell_71
+  MCWC_dr01      WEL     MCWC_dr01   
+  MCWC_dr02      WEL     MCWC_dr02   
+  MCWC_dr03      WEL     MCWC_dr03   
+  MCWC_trmt01    WEL     MCWC_trmt01 
+  MCWC_trmt02    WEL     MCWC_trmt02 
+  MCWC_trmt03    WEL     MCWC_trmt03 
+  MCWC_trmt04    WEL     MCWC_trmt04 
+  MCWC_trmt05    WEL     MCWC_trmt05 
+  MCWC_trmt06    WEL     MCWC_trmt06 
+  MCWC_trmt07    WEL     MCWC_trmt07 
+  MCWC_trmt08    WEL     MCWC_trmt08 
+  MCWC_trmt09    WEL     MCWC_trmt09 
+  MCWC_trmt10    WEL     MCWC_trmt10 
+  MCWC_trmt11    WEL     MCWC_trmt11 
+  MCWC_trmt12    WEL     MCWC_trmt12 
+END CONTINUOUS

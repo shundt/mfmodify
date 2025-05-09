@@ -1,7 +1,6 @@
 examples/scenario_tests/*
 examples/regrid_tests/*
 tests/modified_models/*
-tests/original_models/*
 *.hds
 *.cbb
 *.cbc

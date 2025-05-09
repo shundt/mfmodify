@@ -19,9 +19,6 @@ pump_rate = -2000
 refine_level = 6 
 
 # BODY
-# extract original_models.zip if not already done
-from test_utils import extract_if_needed
-extract_if_needed('original_models.zip')
 print('running test...')
 
 # call function

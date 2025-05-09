@@ -1,0 +1,24 @@
+# Simulation name file for MODFLOW 6 prepared by MF5to6
+# for the Sioux Falls Big Sioux aquifer model
+
+BEGIN OPTIONS
+  CONTINUE
+  NOCHECK
+  MEMORY_PRINT_OPTION NONE
+END OPTIONS
+
+BEGIN TIMING
+  TDIS6  .\sfbsa_tr6.tdis
+END TIMING
+
+BEGIN MODELS
+  GWF6  .\sfbsa_tr6.nam  sfbsa_tr6
+END MODELS
+
+BEGIN EXCHANGES
+END EXCHANGES
+
+BEGIN SOLUTIONGROUP 1
+  MXITER  1
+  IMS6  .\sfbsa_tr6.ims  sfbsa_tr6
+END SOLUTIONGROUP

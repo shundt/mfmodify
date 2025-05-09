@@ -1,0 +1,6 @@
+BEGIN options
+END options
+
+BEGIN continuous  FILEOUT  ..\output\ghb_la_flow_obs.csv
+  ghblan_mes GHB ghblan_mes
+END continuous  FILEOUT  ..\output\ghb_la_flow_obs.csv
