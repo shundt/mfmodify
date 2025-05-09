@@ -224,6 +224,7 @@ def copy_param_dict(pack):
     return pack_param_dict
 
 def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
+# TODO: add an option to set all internal if a package has external data
     """
     Copy a package from one simulation or model to another.
 
