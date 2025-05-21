@@ -31,10 +31,8 @@ def scenario_years_to_sps(scenario_years, sp_df):
         scenario_sps.extend(i_sps)
     return scenario_sps
 
-def retime_package_sp_data(param_values, new_sp_df):
+def retime_package_sp_data(sp_data_dict, new_sp_df):
     # make conversion array for stress periods
-    # sp_data_dict = pack.stress_period_data.data
-    sp_data_dict = param_values
     sp_data_sps = list(sp_data_dict.keys())
     convert_df = (
         new_sp_df
@@ -106,49 +104,111 @@ def convert_timeseries(timeseries, convert_df):
     new_timeseries = new_timeseries_df.to_records(index=False)
     return new_timeseries
 
-def make_retimed_package_param_dict(pack, convert_df=None, transient_params=['stress_period_data']):
+def filename_from_file_entry(file_entry):
+    filename_raw = (
+        file_entry
+        .split('OPEN/CLOSE')[-1]
+        .strip()
+        .split(' ')[0]
+        .replace('\n', '')
+    )
+    if filename_raw.startswith("'") or filename_raw.startswith('"'):
+        return filename_raw[1:-1]
+    return filename_raw
+
+def check_and_get_external_period_files(pak, attrnm, convert_df):
+    # make a quick function to clean the filename
+    # check all types of temporal data
+    if (attrnm in ['stress_period_data', 'perioddata', 'recharge']) and hasattr(pak, attrnm):
+            # get attribute
+            attr = pak.__getattribute__(attrnm)
+            # get dict of sps with entry in package
+            period_active_dict = attr.get_active_key_dict()
+            # get a dataframe of periods and external file info
+            period_active_df = (
+                pd
+                .DataFrame(period_active_dict.items(), columns=['sp', 'active'])
+                .query('active')
+            )
+            active_sps = period_active_df.sp.to_list()
+            # get the external file info
+            if hasattr(attr, 'external_file_name'):
+                ext_files = [attr.external_file_name(sp) for sp in active_sps]
+                external = [fn != '' for fn in ext_files]
+            else:
+                file_entries = [attr.get_file_entry(sp) for sp in active_sps]
+                ext_files = [filename_from_file_entry(fe) for fe in file_entries]
+                external = ['OPEN/CLOSE' in fe for fe in file_entries]
+            # make a status dataframe
+            period_status_df = (
+                pd
+                .DataFrame(period_active_dict.items(), columns=['sp', 'active'])
+                .query('active')
+                .assign(external = external)
+                .assign(external_file = ext_files)
+                .set_index('sp')
+            )
+            # convert to new sp info
+            new_externals_df = convert_df.join(period_status_df)
+            # get set of all active or not
+            external_set = set(
+                new_externals_df
+                .external
+                .to_list()
+            )
+            # get sp and filename
+            ex_fn_df = new_externals_df.loc[:, ['sp', 'external_file']]
+            all_external = (False not in external_set)
+            if all_external:
+                # copy the external paths
+                attr_dict = {sp: {'filename': fn} for sp, fn in ex_fn_df.itertuples(index=False)}
+            else:
+                # load all as internal
+                all_external = False
+                attr_dict = {}
+    else:
+        attr_dict = None
+        all_external = None
+    return all_external, attr_dict
+
+def make_retimed_package_param_dict(pack, convert_df=None, 
+    period_params=['stress_period_data', 'perioddata', 'recharge']):
     # get list of attributes to use as parameters in instantiating object
-    # rem_att_set = set(['loading_package', 'stress_period_data'])
-    rem_att_set = set(['loading_package'])
+    rem_att_set = set(['loading_package'] + period_params)
     param_set = get_parameter_set(pack, rem_att_set=rem_att_set)
-    # # find array data
-    # array_class = flopy.mf6.data.mfdataarray.MFArray
-    # array_params = set([
-    #     att for att in param_set if (isinstance(getattr(pack, att), array_class)
-    #     and getattr(pack, att).has_data())
-    # ])
     param_list = list(param_set - set([]))
     # create parameter dictionary 
-    # get those from attribute list
-    # pack_param_dict = {}
-    # for att in param_list:
-    #     att_val = getattr(pack, att)
-    #     if att_val.has_data():
-    #         pack_param_dict[att] = att_val.get_data()
     pack_param_dict = param_dict_from_list(pack, param_list)
     # add others manually
     pack_param_dict['pname'] = pack.package_name
     pack_param_dict['filename'] = pack.filename
-    # stress-period data
-    # transient information to retime
-    for transient_param in transient_params:
+    # period information to retime
+    for period_param in period_params:
         if convert_df is not None:
-            if transient_param in pack_param_dict.keys():
-                # print(f'Converting {transient_param} for package "{pack.package_name}"')
-                param_values = pack_param_dict[transient_param]
-                # convert stress periods
-                sp_data_new = retime_package_sp_data(param_values, convert_df)
-                pack_param_dict[transient_param] =  sp_data_new
+            if hasattr(pack, period_param) and (getattr(pack, period_param).data is not None):
+                # See if the period information only references external files
+                ext_files, attrdata = check_and_get_external_period_files(
+                    pack, period_param, convert_df)               
+                # if they are all external, use the results
+                if ext_files:
+                    period_data_new = attrdata
+                # otherwise, use the retime_package_sp_data
+                else:
+                    period_data_dict = param_dict_from_list(pack, [period_param])[period_param]
+                    # convert stress periods
+                    period_data_new = retime_package_sp_data(period_data_dict, convert_df)
+                pack_param_dict[period_param] =  period_data_new
         # else:
             # print(f'No conversion dataframe (convert_df) provided for package "{pack.package_name}"')
     return pack_param_dict
 
-def retime_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, convert_df=None, manual_params={}, transient_params=['stress_period_data']):
+def retime_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, convert_df=None, 
+    manual_params={}, period_params=['stress_period_data', 'perioddata', 'recharge']):
     pack = sim_or_gwf_orig.get_package(pack_name)
     # return pack
     pack_class = pack.__class__
     # get package paramters
-    pack_param_dict = make_retimed_package_param_dict(pack, convert_df=convert_df, transient_params=transient_params)
+    pack_param_dict = make_retimed_package_param_dict(pack, convert_df=convert_df, period_params=period_params)
     # get manual parameters
     for att, val in manual_params.items():
         pack_param_dict[att] = val
@@ -276,13 +336,13 @@ def scenario_from_repeat_years(sim_ws, scenario_years, ic_mon_year, new_sim_ws='
     # modules with time info:
     # sto
     sto = gwf.get_package('sto') # type: ignore
-    param_dict_sto = make_retimed_package_param_dict(sto, transient_params=[])
+    param_dict_sto = make_retimed_package_param_dict(sto, period_params=[])
     param_dict_sto['transient'] = {sp:True for sp in range(n_sps)}
     param_dict_sto['steady_state'] = {sp:False for sp in range(n_sps)}
     new_pack_dict['sto'] = flopy.mf6.ModflowGwfsto(gwf_new, **param_dict_sto)
     # oc
     if gwf.get_package('oc') is not None:
-        new_pack_dict['oc'] = retime_package(gwf, 'oc', gwf_new, convert_df=new_sp_df, transient_params=['printrecord', 'saverecord'])
+        new_pack_dict['oc'] = retime_package(gwf, 'oc', gwf_new, convert_df=new_sp_df, period_params=['printrecord', 'saverecord'])
     # hdobs
     if gwf.get_package('hdobs') is not None:
         new_pack_dict['hdobs'] = copy_package(gwf, 'hdobs', gwf_new)
@@ -458,14 +518,14 @@ def weight_mean_package_sp_data(param_values, sp_data_lut):
 
     return new_sp_data_dict
 
-def weight_mean_package_param_dict(pack, sp_data_lut, transient_params):
+def weight_mean_package_param_dict(pack, sp_data_lut, period_params):
     """
     Generate a parameter dictionary for a package with weighted mean stress period data.
 
     Parameters:
     pack (flopy.mf6.mfpackage.MFPackage): The original package object.
     sp_data_lut (DataFrame): DataFrame containing the lookup table for stress periods and their weights.
-    transient_params (list of str): List of transient parameters to be processed.
+    period_params (list of str): List of transient parameters to be processed.
 
     Returns:
     dict: A dictionary of package parameters with weighted mean stress period data.
@@ -478,13 +538,13 @@ def weight_mean_package_param_dict(pack, sp_data_lut, transient_params):
     pack_param_dict = copy_param_dict(pack)
     # stress-period data
     # transient information to retime
-    for transient_param in transient_params:
+    for period_param in period_params:
         if sp_data_lut is not None:
-            if transient_param in pack_param_dict.keys():
-                param_values = pack_param_dict[transient_param]
+            if period_param in pack_param_dict.keys():
+                param_values = pack_param_dict[period_param]
                 # convert stress periods
                 sp_data_new = weight_mean_package_sp_data(param_values, sp_data_lut)
-                pack_param_dict[transient_param] =  sp_data_new
+                pack_param_dict[period_param] =  sp_data_new
     return pack_param_dict
 
 def mean_weight_timeseries(timeseries, sp_data_lut):
@@ -579,12 +639,12 @@ def mean_weight_timeseries(timeseries, sp_data_lut):
     new_timeseries = new_timeseries_df.to_records(index=False)
     return new_timeseries
 
-def weight_mean_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, sp_data_lut, manual_params={}, transient_params=['stress_period_data']):
+def weight_mean_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, sp_data_lut, manual_params={}, period_params=['stress_period_data']):
     pack = sim_or_gwf_orig.get_package(pack_name)
     # return pack class constructor
     pack_class = pack.__class__
     # get the parameter dictionary with weighted sp info
-    pack_param_dict = weight_mean_package_param_dict(pack, sp_data_lut, transient_params)
+    pack_param_dict = weight_mean_package_param_dict(pack, sp_data_lut, period_params)
     # instantiate package
     pack_new = pack_class(sim_or_gwf_new, **pack_param_dict)
     # convert and reassociate timeseries packages

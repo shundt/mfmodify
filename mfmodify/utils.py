@@ -224,10 +224,7 @@ def copy_param_dict(pack):
     return pack_param_dict
 
 def copy_package(sim_or_gwf_orig, pack_name, sim_or_gwf_new, manual_params={}):
-<<<<<<< HEAD
 # TODO: add an option to set all internal if a package has external data
-=======
->>>>>>> 9f8fc7a98ab698a096a5ade9e03b0cd2efa4f7cb
     """
     Copy a package from one simulation or model to another.
 
@@ -661,3 +658,167 @@ def find_lib_exe(exe_name):
     # Construct the full path to the executable
     # return os.path.join(base_dir, 'executables', os_dir, executable_name)
     return exe_path
+
+def parse_file_entry(file_entry):
+    # make lists to hold items
+    filetype_list = []
+    prefix_list = []
+    file_list = []
+    # split by newlines
+    newlines_list = file_entry.strip().split('\n')
+    for line in newlines_list:
+        # split by different prefixes
+        for keyword in ['FILEIN', 'OPEN/CLOSE', 'FILEOUT']:
+            if keyword in line:
+                filein_list = (
+                    line
+                    .strip()
+                    .replace('\n', '')
+                    .split(keyword)
+                )
+                if len(filein_list) > 1:
+                    filetype = filein_list[0].strip()
+                else:
+                    filetype = ''
+                filetype_list.append(filetype)
+                prefix_list.append(keyword)
+                file = (
+                    filein_list[-1]
+                    .strip()
+                    .split(' ')[0]
+                    .strip()
+                )
+                if file[0] in ['"', "'"]:
+                    file = file[1:-1]
+                file_list.append(file)
+    return filetype_list, prefix_list, file_list
+
+def get_pack_filenames_df(pak):
+    df_list = []
+    for bl_key, bl_itm in pak.blocks.items():
+        for ds_key, ds_itm in bl_itm.datasets.items():
+            block_name = ds_itm.name
+            if (isinstance(ds_itm, flopy.mf6.data.mfdatalist.MFTransientList) or 
+                isinstance(ds_itm, flopy.mf6.data.mfdataarray.MFTransientArray)):
+                typ =  []
+                pre = []
+                fle = []
+                ds_itm_sps = list(ds_itm.get_active_key_dict().keys())
+                for i in ds_itm_sps:
+                    fl_entry = ds_itm.get_file_entry(i)
+                    ityp, ipre, ifle = parse_file_entry(fl_entry)
+                    if len(ifle) > 0:
+                        typ.extend(ityp)
+                        pre.extend(ipre)
+                        fle.extend(ifle)
+            elif isinstance(ds_itm, flopy.mf6.data.mfdataplist.MFPandasTransientList):
+                typ =  []
+                pre = []
+                fle = []
+                ds_itm_sps = list(ds_itm.get_active_key_dict().keys())
+                for i in ds_itm_sps:
+                    ifle = ds_itm.external_file_name(i)
+                    if (ifle != '') and (ifle is not None):
+                        ityp = 'external'
+                        ipre = 'OPEN/CLOSE'
+                        typ.append(ityp)
+                        pre.append(ipre)
+                        fle.append(ifle) 
+            elif ((isinstance(ds_itm, flopy.mf6.data.mfdatascalar.MFScalar)) or 
+                (isinstance(ds_itm, flopy.mf6.data.mfdatalist.MFList)) or
+                (isinstance(ds_itm, flopy.mf6.data.mfdataarray.MFArray))):
+                fl_entry = ds_itm.get_file_entry()
+                typ, pre, fle = parse_file_entry(fl_entry)
+            else:
+                print(ds_itm.name)
+                print(f'''block {ds_itm.name} is of type {type(ds_itm)}. Only 
+                    mfscalar, mflist, mftransientlist, mfarray, 
+                    mftransientarray and mfpandastransientlist implemented''')
+                print(ds_itm)
+            if len(fle) > 0:
+                blk = [block_name] * len(fle)
+                idf = pd.DataFrame({
+                    'block': blk, 
+                    'filetype': typ, 
+                    'keyword': pre, 
+                    'filename': fle})
+                df_list.append(idf)
+    if len(df_list) == 0:
+        df_pak_files =  pd.DataFrame()
+    else: 
+        df_pak_files = pd.concat(df_list)
+    df_pak_files.loc[df_pak_files.keyword == 'OPEN/CLOSE', 'filetype'] = 'external'
+    return df_pak_files
+
+def get_sim_files_df(sim):
+    # lists for all filenames and the files that call them
+    fl_info_list = {
+        'filename': [],
+        'filetype': [],
+        'parent_file': [],
+        'block': [],
+        'keyword': []
+    }
+    # Simulation
+    sim_nam = sim.name_file
+    file_sim_nam = sim_nam.filename
+    # add
+    fl_info_list['filename'].append(file_sim_nam)
+    fl_info_list['filetype'].append('sim')
+    for key in ['parent_file', 'block', 'keyword']:
+        fl_info_list[key].append('')
+    # TDIS
+    fl_info_list['filename'].append(sim.get_package('tdis').filename)
+    fl_info_list['filetype'].append('tdis')
+    fl_info_list['parent_file'].append(file_sim_nam)
+    for key in ['block', 'keyword']:
+        fl_info_list[key].append('')
+    # IMS
+    fl_info_list['filename'].append(sim.get_package('ims').filename)
+    fl_info_list['filetype'].append('ims')
+    fl_info_list['parent_file'].append(file_sim_nam)
+    for key in ['block', 'keyword']:
+        fl_info_list[key].append('')
+    # Models
+    model_info = sim_nam.models.get_data()
+    fl_info_list['filename'].extend(list(model_info['mfname']))
+    fl_info_list['filetype'].extend(list(model_info['mtype']))
+    fl_info_list['parent_file'].append(file_sim_nam)
+    for key in ['block', 'keyword']:
+        fl_info_list[key].append('')
+    # load nam files for all models
+    pak_df_list = []
+    for model_name in model_info['mname']:
+        # load the model
+        mdl = sim.get_model(model_name)
+        file_mdl = mdl.namefile
+        # Packages
+        pak_df = get_gwf_package_df(mdl)
+        # add
+        fl_info_list['filename'].extend(pak_df.fname)
+        fl_info_list['filetype'].extend(pak_df.ftype)
+        fl_info_list['parent_file'].extend([mdl.namefile]*pak_df.shape[0])
+        for key in ['block', 'keyword']:
+            fl_info_list[key].extend(['']*pak_df.shape[0])
+        # Files within packages
+        for pname in pak_df.pname:
+            pak = mdl.get_package(pname)
+            ipak_df = get_pack_filenames_df(pak).assign(parent_file=pak.filename)
+            pak_df_list.append(ipak_df)
+            if hasattr(pak, 'ts'):
+                for ts_obj in get_ts_objects(pak):
+                    ipak_df = get_pack_filenames_df(ts_obj).assign(parent_file=ts_obj.filename)
+                    pak_df_list.append(ipak_df)
+            if hasattr(pak, 'obs'):
+                for obs_obj in get_obs_objects(pak):
+                    ipak_df = get_pack_filenames_df(obs_obj).assign(parent_file=obs_obj.filename)
+                    pak_df_list.append(ipak_df)
+    pak_df_all = pd.concat(pak_df_list)
+    fl_info_df = (
+        pd
+        .concat([
+            pd.DataFrame(fl_info_list)
+            , pak_df_all])
+        .reset_index(drop=True)
+    )
+    return fl_info_df
