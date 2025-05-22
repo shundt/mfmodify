@@ -108,6 +108,21 @@ def get_sp_data(sim, snap_dates='M'):
     )
     return sp_df
 
+def get_stp_data(gwf):
+    mt = gwf.modeltime
+    time_df = (
+        pd.DataFrame({
+            'kper_kstp': mt.kper_kstp,
+            'sp': [x[0] for x in mt.kper_kstp],
+            'ts': [x[1] for x in mt.kper_kstp],
+            'tslen': mt.tslen,
+            'endtime': mt.totim,
+            'starttime': mt.totim - mt.tslen,
+            'start_date_time': [mt.start_datetime] + mt.datetimes[:-1],
+            'end_date_time': mt.datetimes})
+    )
+    return time_df
+
 def get_parameter_set(pack, rem_att_set=set([])):
     """
     Retrieve a set of parameters for instantiating a package.
@@ -677,7 +692,7 @@ def parse_file_entry(file_entry):
                     .split(keyword)
                 )
                 if len(filein_list) > 1:
-                    filetype = filein_list[0].strip()
+                    filetype = filein_list[0].strip().split(' ')[-1]
                 else:
                     filetype = ''
                 filetype_list.append(filetype)
@@ -747,7 +762,7 @@ def get_pack_filenames_df(pak):
         df_pak_files =  pd.DataFrame()
     else: 
         df_pak_files = pd.concat(df_list)
-    df_pak_files.loc[df_pak_files.keyword == 'OPEN/CLOSE', 'filetype'] = 'external'
+        df_pak_files.loc[df_pak_files.keyword == 'OPEN/CLOSE', 'filetype'] = 'external'
     return df_pak_files
 
 def get_sim_files_df(sim):
@@ -814,6 +829,22 @@ def get_sim_files_df(sim):
                     ipak_df = get_pack_filenames_df(obs_obj).assign(parent_file=obs_obj.filename)
                     pak_df_list.append(ipak_df)
     pak_df_all = pd.concat(pak_df_list)
+    # check for tab6 types and read those for more possible files
+    tab6_files = pak_df_all.query('filetype == "TAB6"').filename
+    for tab6_file in tab6_files:
+        tab6_path = os.path.join(str(sim.sim_path), tab6_file)
+        with open(tab6_path, 'r') as f:
+            for line in f.readlines():
+                typ, pre, fle = parse_file_entry(line)
+                if len(fle) > 0:
+                    fl_info_list['filename'].extend(fle)
+                    for i, ipre in enumerate(pre):
+                        if ipre == 'OPEN/CLOSE':
+                            typ[i] = 'external'
+                    fl_info_list['filetype'].extend(typ)
+                    fl_info_list['parent_file'].extend([tab6_file]*len(fle))
+                    fl_info_list['keyword'].extend(pre)
+                    fl_info_list['block'].extend(['table']*len(fle))
     fl_info_df = (
         pd
         .concat([
