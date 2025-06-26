@@ -765,7 +765,7 @@ def get_pack_filenames_df(pak):
         df_pak_files.loc[df_pak_files.keyword == 'OPEN/CLOSE', 'filetype'] = 'external'
     return df_pak_files
 
-def get_sim_files_df(sim):
+def get_sim_files_df(sim, alt_dir=None):
     # lists for all filenames and the files that call them
     fl_info_list = {
         'filename': [],
@@ -833,6 +833,12 @@ def get_sim_files_df(sim):
     tab6_files = pak_df_all.query('filetype == "TAB6"').filename
     for tab6_file in tab6_files:
         tab6_path = os.path.join(str(sim.sim_path), tab6_file)
+        if not os.path.exists(tab6_path):
+            if alt_dir is None:
+                raise LookupError(f'{tab6_file} not found in {str(sim.sim_path)} and no alternative directory was provided to search.')
+            tab6_path = os.path.join(alt_dir, tab6_file)
+            if not os.path.exists(tab6_path):
+                raise LookupError(f'{tab6_file} does not exist in {str(sim.sim_path)} or {alt_dir}')
         with open(tab6_path, 'r') as f:
             for line in f.readlines():
                 typ, pre, fle = parse_file_entry(line)
